@@ -11,7 +11,18 @@
     <div class="bg-gray-800 p-8 rounded-lg shadow-xl w-full max-w-md">
         <h1 class="text-2xl font-bold mb-6 text-center text-blue-400">Pro Media Downloader</h1>
         
-        <form action="/download" method="POST" id="downloadForm">
+        <div id="whatsapp-gate" class="text-center py-4">
+            <h2 class="text-lg font-semibold mb-2 text-yellow-400">Step 1: Unlock the Downloader</h2>
+            <p class="mb-6 text-gray-300 text-sm">To use this free tool, please join our official WhatsApp channel first!</p>
+            
+            <a href="https://whatsapp.com/channel/0029VbBu1EgJUM2iVI3tPE0S" target="_blank" id="joinBtn"
+               class="inline-block w-full bg-green-600 hover:bg-green-500 text-white font-bold py-3 px-4 rounded transition duration-200 mb-4 shadow-lg">
+                📱 Join WhatsApp Channel
+            </a>
+            <p class="text-xs text-gray-500">Clicking the button will open WhatsApp and unlock the tool automatically.</p>
+        </div>
+
+        <form action="/download" method="POST" id="downloadForm" class="hidden">
             <div class="mb-4">
                 <label class="block text-sm font-medium mb-2" for="url">Social Media Link</label>
                 <input type="url" id="url" name="url" required placeholder="https://youtube.com/..." 
@@ -34,14 +45,23 @@
 
             <button type="submit" id="submitBtn" 
                     class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded transition duration-200">
-                Download
+                Download Media
             </button>
             <p id="loadingText" class="text-sm text-yellow-400 mt-4 text-center hidden">Processing... Please wait, this might take a minute depending on the file size.</p>
         </form>
     </div>
 
     <script>
-        // Simple script to show a loading message when the button is clicked
+        // Logic to unlock the form when WhatsApp is clicked
+        document.getElementById('joinBtn').addEventListener('click', function() {
+            // Wait 1.5 seconds to make it feel like a real verification process
+            setTimeout(function() {
+                document.getElementById('whatsapp-gate').classList.add('hidden');
+                document.getElementById('downloadForm').classList.remove('hidden');
+            }, 1500); 
+        });
+
+        // Logic to show loading text when downloading
         document.getElementById('downloadForm').addEventListener('submit', function() {
             document.getElementById('submitBtn').classList.add('opacity-50', 'cursor-not-allowed');
             document.getElementById('loadingText').classList.remove('hidden');
