@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pro Web Downloader</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-900 text-white flex items-center justify-center min-h-screen">
+
+    <div class="bg-gray-800 p-8 rounded-lg shadow-xl w-full max-w-md">
+        <h1 class="text-2xl font-bold mb-6 text-center text-blue-400">Pro Media Downloader</h1>
+        
+        <form action="/download" method="POST" id="downloadForm">
+            <div class="mb-4">
+                <label class="block text-sm font-medium mb-2" for="url">Social Media Link</label>
+                <input type="url" id="url" name="url" required placeholder="https://youtube.com/..." 
+                       class="w-full px-4 py-2 bg-gray-700 border border-gray-600 rounded focus:outline-none focus:border-blue-400">
+            </div>
+
+            <div class="mb-6">
+                <label class="block text-sm font-medium mb-2">Format</label>
+                <div class="flex gap-4">
+                    <label class="flex items-center gap-2">
+                        <input type="radio" name="format" value="mp4" checked class="text-blue-500">
+                        Video (MP4)
+                    </label>
+                    <label class="flex items-center gap-2">
+                        <input type="radio" name="format" value="mp3" class="text-blue-500">
+                        Audio (MP3)
+                    </label>
+                </div>
+            </div>
+
+            <button type="submit" id="submitBtn" 
+                    class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded transition duration-200">
+                Download
+            </button>
+            <p id="loadingText" class="text-sm text-yellow-400 mt-4 text-center hidden">Processing... Please wait, this might take a minute depending on the file size.</p>
+        </form>
+    </div>
+
+    <script>
+        // Simple script to show a loading message when the button is clicked
+        document.getElementById('downloadForm').addEventListener('submit', function() {
+            document.getElementById('submitBtn').classList.add('opacity-50', 'cursor-not-allowed');
+            document.getElementById('loadingText').classList.remove('hidden');
+        });
+    </script>
+</body>
+</html>
