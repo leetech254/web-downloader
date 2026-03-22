@@ -25,10 +25,11 @@ def download():
     ydl_opts = {
         'outtmpl': f'{temp_dir}/{unique_filename}.%(ext)s',
         'quiet': True,
-        'noplaylist': True, # Prevents downloading entire channels by accident
+        'noplaylist': True, 
         'nocheckcertificate': True,
-        'geo_bypass': True, # Bypasses country locks
-        'http_headers': {   # Fakes a real web browser to bypass TikTok/Insta bot blocks
+        'geo_bypass': True, 
+        'cookiefile': 'cookies.txt', # <--- THE VIP PASS IS HERE
+        'http_headers': {   
             'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
         }
     }
