@@ -3,69 +3,93 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Pro Web Downloader</title>
+    <title>Ultimate Media Downloader</title>
     <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 </head>
-<body class="bg-gray-900 text-white flex items-center justify-center min-h-screen">
+<body class="bg-gradient-to-br from-gray-900 to-gray-800 text-white flex items-center justify-center min-h-screen p-4">
 
-    <div class="bg-gray-800 p-8 rounded-lg shadow-xl w-full max-w-md">
-        <h1 class="text-2xl font-bold mb-6 text-center text-blue-400">Pro Media Downloader</h1>
+    <div class="bg-gray-800 p-8 rounded-2xl shadow-2xl w-full max-w-lg border border-gray-700">
+        <h1 class="text-3xl font-extrabold mb-2 text-center text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-purple-500">
+            Universal Downloader
+        </h1>
+        <p class="text-center text-gray-400 mb-8 text-sm">Supports YouTube, TikTok, Instagram, X & More!</p>
         
-        <div id="whatsapp-gate" class="text-center py-4">
-            <h2 class="text-lg font-semibold mb-2 text-yellow-400">Step 1: Unlock the Downloader</h2>
-            <p class="mb-6 text-gray-300 text-sm">To use this free tool, please join our official WhatsApp channel first!</p>
+        <div id="whatsapp-gate" class="text-center py-6 bg-gray-750 rounded-xl border border-gray-600">
+            <i class="fa-brands fa-whatsapp text-5xl text-green-500 mb-4 animate-bounce"></i>
+            <h2 class="text-xl font-bold mb-2 text-white">Unlock the Tool</h2>
+            <p class="mb-6 text-gray-300 text-sm px-4">Join our official WhatsApp channel to get free, unlimited access to this downloader.</p>
             
             <a href="https://whatsapp.com/channel/0029VbBu1EgJUM2iVI3tPE0S" target="_blank" id="joinBtn"
-               class="inline-block w-full bg-green-600 hover:bg-green-500 text-white font-bold py-3 px-4 rounded transition duration-200 mb-4 shadow-lg">
-                📱 Join WhatsApp Channel
+               class="inline-block w-3/4 bg-green-600 hover:bg-green-500 text-white font-bold py-3 px-4 rounded-lg transition duration-300 shadow-[0_0_15px_rgba(34,197,94,0.5)]">
+                Join to Unlock
             </a>
-            <p class="text-xs text-gray-500">Clicking the button will open WhatsApp and unlock the tool automatically.</p>
         </div>
 
         <form action="/download" method="POST" id="downloadForm" class="hidden">
-            <div class="mb-4">
-                <label class="block text-sm font-medium mb-2" for="url">Social Media Link</label>
-                <input type="url" id="url" name="url" required placeholder="https://youtube.com/..." 
-                       class="w-full px-4 py-2 bg-gray-700 border border-gray-600 rounded focus:outline-none focus:border-blue-400">
+            <div class="mb-5">
+                <label class="block text-sm font-semibold mb-2 text-gray-300" for="url">
+                    <i class="fa-solid fa-link mr-2 text-blue-400"></i>Paste Video/Audio Link
+                </label>
+                <input type="url" id="url" name="url" required placeholder="e.g., https://youtu.be/..." 
+                       class="w-full px-4 py-3 bg-gray-900 border border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition">
             </div>
 
-            <div class="mb-6">
-                <label class="block text-sm font-medium mb-2">Format</label>
-                <div class="flex gap-4">
-                    <label class="flex items-center gap-2">
-                        <input type="radio" name="format" value="mp4" checked class="text-blue-500">
-                        Video (MP4)
+            <div class="mb-8">
+                <label class="block text-sm font-semibold mb-3 text-gray-300">
+                    <i class="fa-solid fa-sliders mr-2 text-purple-400"></i>Select Format
+                </label>
+                <div class="grid grid-cols-2 gap-4">
+                    <label class="cursor-pointer">
+                        <input type="radio" name="format" value="mp4" checked class="peer sr-only">
+                        <div class="rounded-lg border border-gray-600 px-4 py-3 hover:bg-gray-700 peer-checked:bg-blue-600/20 peer-checked:border-blue-500 transition text-center">
+                            <i class="fa-solid fa-video mb-1 text-xl block"></i>
+                            <span class="font-medium text-sm">Video (MP4)</span>
+                        </div>
                     </label>
-                    <label class="flex items-center gap-2">
-                        <input type="radio" name="format" value="mp3" class="text-blue-500">
-                        Audio (MP3)
+                    <label class="cursor-pointer">
+                        <input type="radio" name="format" value="mp3" class="peer sr-only">
+                        <div class="rounded-lg border border-gray-600 px-4 py-3 hover:bg-gray-700 peer-checked:bg-purple-600/20 peer-checked:border-purple-500 transition text-center">
+                            <i class="fa-solid fa-music mb-1 text-xl block"></i>
+                            <span class="font-medium text-sm">Audio (MP3)</span>
+                        </div>
                     </label>
                 </div>
             </div>
 
             <button type="submit" id="submitBtn" 
-                    class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded transition duration-200">
-                Download Media
+                    class="w-full bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-500 hover:to-purple-500 text-white font-bold py-3 px-4 rounded-lg transition duration-300 shadow-lg transform active:scale-95">
+                <i class="fa-solid fa-download mr-2"></i> Download Now
             </button>
-            <p id="loadingText" class="text-sm text-yellow-400 mt-4 text-center hidden">Processing... Please wait, this might take a minute depending on the file size.</p>
+            
+            <div id="loadingBox" class="hidden mt-6 text-center">
+                <i class="fa-solid fa-circle-notch fa-spin text-3xl text-blue-400 mb-2"></i>
+                <p class="text-sm text-yellow-400 font-medium">Extracting and processing media...</p>
+                <p class="text-xs text-gray-400 mt-1">Please do not close this page. High quality files take longer.</p>
+            </div>
         </form>
     </div>
 
     <script>
-        // Logic to unlock the form when WhatsApp is clicked
         document.getElementById('joinBtn').addEventListener('click', function() {
-            // Wait 1.5 seconds to make it feel like a real verification process
+            let btn = this;
+            btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Unlocking...';
             setTimeout(function() {
                 document.getElementById('whatsapp-gate').classList.add('hidden');
                 document.getElementById('downloadForm').classList.remove('hidden');
+                document.getElementById('downloadForm').classList.add('animate-fade-in');
             }, 1500); 
         });
 
-        // Logic to show loading text when downloading
         document.getElementById('downloadForm').addEventListener('submit', function() {
-            document.getElementById('submitBtn').classList.add('opacity-50', 'cursor-not-allowed');
-            document.getElementById('loadingText').classList.remove('hidden');
+            document.getElementById('submitBtn').classList.add('hidden');
+            document.getElementById('loadingBox').classList.remove('hidden');
         });
     </script>
+
+    <style>
+        .animate-fade-in { animation: fadeIn 0.5s ease-in-out; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(-10px); } to { opacity: 1; transform: translateY(0); } }
+    </style>
 </body>
 </html>
