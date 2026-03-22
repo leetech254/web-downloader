@@ -3,126 +3,356 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Ultimate Media Downloader | Lee Tech</title>
+    <title>LEE TECH SERVICES | Elite Platform v10.2</title>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;600;800&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <style>
+        :root { 
+            --accent: #00ff88; --blue: #3b82f6; --red: #ff4757;
+            --bg: #010409; --card: #0d1117; --text: #f8fafc;
+            --border: rgba(255,255,255,0.08);
+            --glass: rgba(1, 4, 9, 0.9);
+        }
+
+        .matrix-mode {
+            --accent: #00ff41; --blue: #008f11; --bg: #000500; --card: #001100; --border: #003b00;
+        }
+
+        * { box-sizing: border-box; transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); }
+        html { scroll-behavior: smooth; }
+        body { 
+            font-family: 'Plus Jakarta Sans', sans-serif; background: var(--bg); color: var(--text); 
+            margin: 0; padding: 0; line-height: 1.6; overflow-x: hidden;
+        }
+
+        /* Boot Sequence */
+        #welcomeScreen {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: #000; z-index: 9999; display: flex; flex-direction: column;
+            align-items: center; justify-content: center; padding: 20px;
+            transition: opacity 0.8s ease, visibility 0.8s ease;
+        }
+        #welcomeScreen.fade-out { opacity: 0; visibility: hidden; }
+        
+        .typewriter-text {
+            font-family: 'JetBrains Mono', monospace; color: var(--accent);
+            font-size: 1.2rem; text-align: center; margin-bottom: 20px;
+            white-space: pre-line; min-height: 80px; text-shadow: 0 0 10px rgba(0,255,136,0.5);
+        }
+        
+        .loader-bar-container {
+            width: 100%; max-width: 300px; height: 4px; background: #222;
+            border-radius: 2px; overflow: hidden; margin-top: 10px;
+        }
+        .loader-progress {
+            width: 0%; height: 100%; background: var(--accent);
+            animation: loadProgress 2.5s ease-in-out forwards;
+        }
+        @keyframes loadProgress { 0% { width: 0%; } 50% { width: 70%; } 100% { width: 100%; } }
+
+        /* Toast Notifications */
+        #toastContainer {
+            position: fixed; top: 20px; right: 20px; z-index: 4000;
+            display: flex; flex-direction: column; gap: 10px; pointer-events: none;
+        }
+        .toast {
+            background: var(--card); border-left: 4px solid var(--accent);
+            color: var(--text); padding: 15px 20px; border-radius: 8px;
+            font-family: 'JetBrains Mono', monospace; font-size: 0.8rem;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.5); transform: translateX(120%);
+            animation: slideInToast 0.4s forwards, fadeOutToast 0.4s 3.5s forwards;
+        }
+        .toast.error { border-left-color: var(--red); }
+        @keyframes slideInToast { to { transform: translateX(0); } }
+        @keyframes fadeOutToast { to { opacity: 0; transform: translateY(-10px); } }
+
+        /* Legacy Styling for main page integration */
+        .glow { position: fixed; width: 500px; height: 500px; background: var(--blue); filter: blur(200px); opacity: 0.1; z-index: -1; border-radius: 50%; pointer-events: none; }
+        .tech-marquee { background: #000; border-bottom: 1px solid var(--border); padding: 12px 0; overflow: hidden; display: flex; font-family: 'JetBrains Mono'; }
+        @keyframes marquee { 0% { transform: translateX(0); } 100% { transform: translateX(-50%); } }
+        .marquee-content { display: flex; white-space: nowrap; animation: marquee 30s linear infinite; gap: 60px; }
+        .tech-item { color: #475569; font-weight: 800; font-size: 0.75rem; letter-spacing: 2px; }
+
+        nav {
+            position: sticky; top: 0; background: var(--glass); backdrop-filter: blur(20px);
+            border-bottom: 1px solid var(--border); z-index: 1000; padding: 15px 5%;
+            display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;
+        }
+        .logo { font-weight: 800; font-size: 1.1rem; letter-spacing: -1.5px; font-family: 'JetBrains Mono'; }
+        .btn { padding: 12px 20px; border-radius: 12px; font-weight: 700; text-decoration: none; display: inline-flex; align-items: center; gap: 10px; border: none; font-size: 0.85rem; cursor: pointer; justify-content: center; transition: 0.3s; }
+        .btn-wa { background: var(--accent); color: #000; }
+        .btn-wa:hover { opacity: 0.8; }
+        .btn-gh { background: #24292e; color: #fff; }
+        .btn-outline { border: 1px solid var(--border); color: var(--text); background: transparent; }
+        .btn-outline:hover { background: var(--border); }
+
         .animate-fade-in { animation: fadeIn 0.5s ease-in-out forwards; }
         @keyframes fadeIn { from { opacity: 0; transform: translateY(-10px); } to { opacity: 1; transform: translateY(0); } }
+
+        /* Admin UI */
+        .modal-overlay-admin { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); backdrop-filter: blur(5px); display: flex; align-items: center; justify-content: center; z-index: 3000; opacity: 0; visibility: hidden; transition: 0.3s; }
+        .modal-overlay-admin.active { opacity: 1; visibility: visible; }
+        .modal-content-admin { background: var(--card); border: 1px solid var(--accent); padding: 30px; border-radius: 20px; width: 90%; max-width: 400px; transform: scale(0.9); transition: 0.3s; text-align: center; }
+        .modal-overlay-admin.active .modal-content-admin { transform: scale(1); }
+        #admin-panel { display: none; padding: 30px 5%; font-family: 'JetBrains Mono'; }
     </style>
 </head>
-<body class="bg-gradient-to-br from-gray-900 to-gray-800 text-white flex flex-col items-center justify-center min-h-screen p-4">
+<body class="relative min-h-screen flex flex-col">
 
-    <div class="bg-gray-800 p-8 rounded-2xl shadow-2xl w-full max-w-lg border border-gray-700 relative z-10">
-        <h1 class="text-3xl font-extrabold mb-2 text-center text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-purple-500">
-            Universal Downloader
-        </h1>
-        <p class="text-center text-gray-400 mb-8 text-sm">Supports YouTube, TikTok, Instagram, X & More!</p>
-        
-        <div id="whatsapp-gate" class="text-center py-6 bg-gray-750 rounded-xl border border-gray-600">
-            <i class="fa-brands fa-whatsapp text-5xl text-green-500 mb-4 animate-bounce"></i>
-            <h2 class="text-xl font-bold mb-2 text-white">Unlock the Tool</h2>
-            <p class="mb-6 text-gray-300 text-sm px-4">Join our official WhatsApp channel to get free, unlimited access to this downloader.</p>
-            
-            <a href="https://whatsapp.com/channel/0029VbBu1EgJUM2iVI3tPE0S" target="_blank" id="joinBtn"
-               class="inline-block w-3/4 bg-green-600 hover:bg-green-500 text-white font-bold py-3 px-4 rounded-lg transition duration-300 shadow-[0_0_15px_rgba(34,197,94,0.5)]">
-                Join to Unlock
-            </a>
+    <div id="welcomeScreen">
+        <div class="typewriter-text" id="typewriterOutput"></div>
+        <div class="loader-bar-container">
+            <div class="loader-progress"></div>
         </div>
-
-        <form action="/download" method="POST" id="downloadForm" class="hidden opacity-0">
-            <div class="mb-5">
-                <label class="block text-sm font-semibold mb-2 text-gray-300" for="url">
-                    <i class="fa-solid fa-link mr-2 text-blue-400"></i>Paste Video/Audio Link
-                </label>
-                <input type="url" id="url" name="url" required placeholder="e.g., https://youtube.com/..." 
-                       class="w-full px-4 py-3 bg-gray-900 border border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition">
-            </div>
-
-            <div class="mb-5">
-                <label class="block text-sm font-semibold mb-3 text-gray-300">
-                    <i class="fa-solid fa-sliders mr-2 text-purple-400"></i>Select Format
-                </label>
-                <div class="grid grid-cols-2 gap-4">
-                    <label class="cursor-pointer">
-                        <input type="radio" name="format" value="mp4" checked class="peer sr-only" id="radioVideo">
-                        <div class="rounded-lg border border-gray-600 px-4 py-3 hover:bg-gray-700 peer-checked:bg-blue-600/20 peer-checked:border-blue-500 transition text-center">
-                            <i class="fa-solid fa-video mb-1 text-xl block"></i>
-                            <span class="font-medium text-sm">Video (MP4)</span>
-                        </div>
-                    </label>
-                    <label class="cursor-pointer">
-                        <input type="radio" name="format" value="mp3" class="peer sr-only" id="radioAudio">
-                        <div class="rounded-lg border border-gray-600 px-4 py-3 hover:bg-gray-700 peer-checked:bg-purple-600/20 peer-checked:border-purple-500 transition text-center">
-                            <i class="fa-solid fa-music mb-1 text-xl block"></i>
-                            <span class="font-medium text-sm">Audio (MP3)</span>
-                        </div>
-                    </label>
-                </div>
-            </div>
-
-            <div class="mb-8">
-                <label class="block text-sm font-semibold mb-2 text-gray-300">
-                    <i class="fa-solid fa-gear mr-2 text-gray-400"></i>Select Quality/Size
-                </label>
-                
-                <select id="videoQuality" name="quality" class="w-full px-4 py-3 bg-gray-900 border border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-white">
-                    <option value="1080">1080p (High Quality - Larger Size)</option>
-                    <option value="720">720p (Standard Quality - Medium Size)</option>
-                    <option value="480">480p (Data Saver - Smaller Size)</option>
-                    <option value="best">Maximum Available</option>
-                </select>
-
-                <select id="audioQuality" class="hidden w-full px-4 py-3 bg-gray-900 border border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 text-white">
-                    <option value="320">320 kbps (Studio Quality)</option>
-                    <option value="192" selected>192 kbps (Standard Quality)</option>
-                    <option value="128">128 kbps (Data Saver)</option>
-                </select>
-            </div>
-
-            <button type="submit" id="submitBtn" 
-                    class="w-full bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-500 hover:to-purple-500 text-white font-bold py-3 px-4 rounded-lg transition duration-300 shadow-lg transform active:scale-95 flex justify-center items-center">
-                <i class="fa-solid fa-download mr-2"></i> Download.
-            </button>
-            <p class="text-gray-400 text-sm font-medium tracking-wide mt-2 text-center" id="statusText">
-                SYSTEM ONLINE.
-            </p>
-
-            <div id="loadingBox" class="hidden mt-6 text-center bg-gray-900 p-4 rounded-lg border border-gray-700">
-                <i class="fa-solid fa-circle-notch fa-spin text-3xl text-blue-400 mb-2"></i>
-                <p class="text-sm text-yellow-400 font-medium">Processing your media...</p>
-                <p class="text-xs text-gray-400 mt-1">Please keep this page open. Large files may take a moment.</p>
-            </div>
-        </form>
+        <p style="color: #475569; font-family: 'JetBrains Mono'; font-size: 0.6rem; margin-top: 20px;">[PRESS ANY KEY TO SKIP]</p>
     </div>
 
-    <div id="resultModal" class="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center hidden opacity-0 transition-opacity duration-300">
+    <div id="toastContainer"></div>
+    <div class="glow" id="mouseGlow"></div>
+    <div class="tech-marquee"><div class="marquee-content" id="tickerItems"></div></div>
+
+    <nav>
+        <div class="logo">LEE_TECH_SERVICES <span style="color:var(--accent)">[v10.2]</span></div>
+        <div class="nav-links" style="display:flex; gap:8px;">
+            <button class="btn btn-outline" onclick="toggleMatrix()" id="ghostBtn">GHOST_MODE: OFF</button>
+            <a href="https://whatsapp.com/channel/0029VbBu1EgJUM2iVI3tPE0S" target="_blank" class="btn btn-wa"><i class="fa-brands fa-whatsapp"></i> Join Tech Channel</a> 
+        </div>
+    </nav>
+
+    <div id="landing-page" class="flex-grow flex items-center justify-center p-4">
+        
+        <div class="bg-gray-800 p-8 rounded-2xl shadow-2xl w-full max-w-lg border border-gray-700 relative z-10 mt-10">
+            <div style="display:flex; justify-content:space-between; align-items:flex-start;">
+                <div>
+                    <h1 class="text-3xl font-extrabold mb-1 text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-purple-500">
+                        Media Extractor
+                    </h1>
+                    <p class="text-gray-400 mb-8 text-xs font-mono">CORE_TOOL_ACTIVE // v10.2</p>
+                </div>
+                <span class="bg-green-500/10 text-green-400 border border-green-500/20 px-3 py-1 rounded-full text-xs font-bold animate-pulse">
+                    ONLINE
+                </span>
+            </div>
+            
+            <div id="whatsapp-gate" class="text-center py-6 bg-gray-750 rounded-xl border border-gray-600">
+                <i class="fa-brands fa-whatsapp text-5xl text-green-500 mb-4 animate-bounce"></i>
+                <h2 class="text-xl font-bold mb-2 text-white">Unlock the Tool</h2>
+                <p class="mb-6 text-gray-300 text-sm px-4">Join our official WhatsApp channel to get free, unlimited access to this downloader.</p>
+                <a href="https://whatsapp.com/channel/0029VbBu1EgJUM2iVI3tPE0S" target="_blank" id="joinBtn"
+                   class="inline-block w-3/4 bg-green-600 hover:bg-green-500 text-white font-bold py-3 px-4 rounded-lg transition duration-300 shadow-[0_0_15px_rgba(34,197,94,0.5)]">
+                    Join to Unlock
+                </a>
+            </div>
+
+            <form action="/download" method="POST" id="downloadForm" class="hidden opacity-0">
+                <div class="mb-5">
+                    <label class="block text-sm font-semibold mb-2 text-gray-300" for="url">
+                        <i class="fa-solid fa-link mr-2 text-blue-400"></i>Target URL (YT, IG, TikTok, X)
+                    </label>
+                    <input type="url" id="url" name="url" required placeholder="https://youtube.com/..." 
+                           class="w-full px-4 py-3 bg-gray-900 border border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-white transition">
+                </div>
+
+                <div class="mb-5">
+                    <label class="block text-sm font-semibold mb-3 text-gray-300">
+                        <i class="fa-solid fa-sliders mr-2 text-purple-400"></i>Select Format
+                    </label>
+                    <div class="grid grid-cols-2 gap-4">
+                        <label class="cursor-pointer">
+                            <input type="radio" name="format" value="mp4" checked class="peer sr-only" id="radioVideo">
+                            <div class="rounded-lg border border-gray-600 px-4 py-3 hover:bg-gray-700 peer-checked:bg-blue-600/20 peer-checked:border-blue-500 transition text-center">
+                                <i class="fa-solid fa-video mb-1 text-xl block"></i>
+                                <span class="font-medium text-sm">Video (MP4)</span>
+                            </div>
+                        </label>
+                        <label class="cursor-pointer">
+                            <input type="radio" name="format" value="mp3" class="peer sr-only" id="radioAudio">
+                            <div class="rounded-lg border border-gray-600 px-4 py-3 hover:bg-gray-700 peer-checked:bg-purple-600/20 peer-checked:border-purple-500 transition text-center">
+                                <i class="fa-solid fa-music mb-1 text-xl block"></i>
+                                <span class="font-medium text-sm">Audio (MP3)</span>
+                            </div>
+                        </label>
+                    </div>
+                </div>
+
+                <div class="mb-8">
+                    <label class="block text-sm font-semibold mb-2 text-gray-300">
+                        <i class="fa-solid fa-gear mr-2 text-gray-400"></i>Select Quality/Size
+                    </label>
+                    
+                    <select id="videoQuality" name="quality" class="w-full px-4 py-3 bg-gray-900 border border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-white">
+                        <option value="1080">1080p (High Quality - Larger Size)</option>
+                        <option value="720">720p (Standard Quality - Medium Size)</option>
+                        <option value="480">480p (Data Saver - Smaller Size)</option>
+                        <option value="best">Maximum Available</option>
+                    </select>
+
+                    <select id="audioQuality" class="hidden w-full px-4 py-3 bg-gray-900 border border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 text-white">
+                        <option value="320">320 kbps (Studio Quality)</option>
+                        <option value="192" selected>192 kbps (Standard Quality)</option>
+                        <option value="128">128 kbps (Data Saver)</option>
+                    </select>
+                </div>
+
+                <button type="submit" id="submitBtn" 
+                        class="w-full bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-500 hover:to-purple-500 text-white font-bold py-3 px-4 rounded-lg transition duration-300 shadow-lg transform active:scale-95 flex justify-center items-center">
+                    <i class="fa-solid fa-download mr-2"></i> INITIATE EXTRACTION
+                </button>
+
+                <div id="loadingBox" class="hidden mt-6 text-center bg-gray-900 p-4 rounded-lg border border-gray-700">
+                    <i class="fa-solid fa-circle-notch fa-spin text-3xl text-blue-400 mb-3 block"></i>
+                    <p class="text-sm text-blue-400 font-mono font-bold animate-pulse">BYPASSING SECURITY... EXTRACTING...</p>
+                    <p class="text-xs text-gray-400 mt-2">Connecting to proxy servers. Please do not close page.</p>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <div id="admin-panel">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:30px; border-bottom:1px solid var(--border); padding-bottom:15px; flex-wrap: wrap; gap: 10px;">
+            <h2 style="font-size: 1.2rem; margin: 0; color: white;">SYSTEM_ROOT_V10</h2>
+            <button class="btn" style="background:var(--red); color:white" onclick="location.reload()">EXIT_ROOT</button>
+        </div>
+        <div class="admin-card">
+            <h3 style="font-size: 1rem; color: white;">Broadcast Ticker</h3>
+            <input type="text" id="newsInput" placeholder="New announcement...">
+            <button class="btn btn-outline" style="width:100%; color: white;" onclick="updateNews()">SYNC_TICKER</button>
+        </div>
+    </div>
+
+    <div id="resultModal" class="fixed inset-0 bg-black/90 backdrop-blur-md z-[5000] flex items-center justify-center hidden opacity-0 transition-opacity duration-300 p-4">
         <div class="bg-gray-800 border border-gray-600 p-8 rounded-2xl shadow-2xl max-w-sm w-full text-center relative transform scale-95 transition-transform duration-300" id="modalContent">
             
             <div id="modalSuccess" class="hidden">
                 <i class="fa-solid fa-circle-check text-6xl text-green-500 mb-4 shadow-green-500/50 drop-shadow-lg"></i>
-                <h3 class="text-2xl font-bold text-green-400 mb-2">Success!</h3>
-                <p class="text-gray-300 text-sm mb-6">Your media is downloading securely to your device.</p>
-                <button onclick="closeModal()" class="w-full bg-gray-700 hover:bg-gray-600 text-white font-bold py-2 px-4 rounded-lg transition">Download Another</button>
+                <h3 class="text-2xl font-bold text-green-400 mb-2 font-mono">SUCCESS</h3>
+                <p class="text-gray-300 text-sm mb-6">Media extraction complete. File is downloading to your device.</p>
+                <button onclick="closeModal()" class="w-full bg-gray-700 hover:bg-gray-600 text-white font-bold py-3 px-4 rounded-lg transition font-mono">ACKNOWLEDGE</button>
             </div>
 
             <div id="modalError" class="hidden">
-                <i class="fa-solid fa-circle-exclamation text-6xl text-red-500 mb-4 shadow-red-500/50 drop-shadow-lg"></i>
-                <h3 class="text-2xl font-bold text-red-400 mb-2">Extraction Failed</h3>
-                <p id="errorMsg" class="text-gray-300 text-sm mb-6">Something went wrong.</p>
-                <button onclick="closeModal()" class="w-full bg-red-600 hover:bg-red-500 text-white font-bold py-2 px-4 rounded-lg transition">Try Again</button>
+                <i class="fa-solid fa-triangle-exclamation text-6xl text-red-500 mb-4 shadow-red-500/50 drop-shadow-lg animate-pulse"></i>
+                <h3 class="text-xl font-bold text-red-400 mb-2 font-mono">EXTRACTION FAILED</h3>
+                
+                <div class="bg-red-900/30 border border-red-500/30 p-4 rounded-lg mb-6 text-left">
+                    <p id="errorMsg" class="text-gray-200 text-sm font-mono leading-relaxed">
+                        SYSTEM OFFLINE OR SERVER OVERLOADED.<br><br>THIS WILL BE WORKED ON LATER BY LEE TECH.
+                    </p>
+                </div>
+                
+                <button onclick="closeModal()" class="w-full bg-red-600 hover:bg-red-500 text-white font-bold py-3 px-4 rounded-lg transition font-mono">CLOSE</button>
             </div>
         </div>
     </div>
 
-    <footer class="mt-8 text-center relative z-10">
+    <div class="modal-overlay-admin" id="adminAuthModal">
+        <div class="modal-content-admin">
+            <h2 style="margin-top:0; color: var(--accent); font-family: 'JetBrains Mono';">SYSTEM_AUTH</h2>
+            <p style="font-size: 0.8rem; color: #94a3b8; margin-bottom: 20px;">Enter core access credentials to proceed.</p>
+            <input type="password" id="adminPinInput" placeholder="Enter Root PIN" style="text-align: center; letter-spacing: 5px; font-weight: bold; width: 100%; background: #050810; border: 1px solid var(--border); padding: 12px; border-radius: 10px; color: white;">
+            <div style="display: flex; gap: 10px; margin-top: 15px;">
+                <button class="btn btn-wa" style="flex: 1;" onclick="verifyAdmin()">AUTHORIZE</button>
+                <button class="btn btn-outline" style="flex: 1; color: white;" onclick="closeAdminModal()">CANCEL</button>
+            </div>
+            <p id="adminError" style="color: var(--red); display: none; font-size: 0.8rem; margin-top: 15px; font-family: 'JetBrains Mono';">ACCESS DENIED. INCORRECT PIN.</p>
+        </div>
+    </div>
+
+    <footer class="mt-8 text-center relative z-10 pb-8 border-t border-gray-800 pt-8">
+        <p class="text-gray-500 text-xs font-mono tracking-widest mb-2">
+            © 2026 LEE TECH SERVICES // CLOUD_SYNC_ACTIVE
+        </p>
         <p class="text-gray-400 text-sm font-medium tracking-wide">
             Made with <i class="fa-solid fa-heart text-red-500 mx-1 animate-pulse"></i> by <span class="text-blue-400 font-bold tracking-wider">Lee Tech</span>
         </p>
+        <button onclick="openAdminModal()" class="text-gray-600 text-[10px] mt-4 hover:text-gray-400 transition font-mono uppercase tracking-widest bg-transparent border-none cursor-pointer">
+            Root_Access
+        </button>
     </footer>
 
     <script>
-        // WhatsApp Unlock Logic
+        // --- Boot & Toast UI Logic ---
+        const welcomeMessage = "WELCOME TO LEE TECH SERVICES\n\n> Initializing Core Systems...\n> Establishing Secure Connection...\n> Syncing Cloud Data...";
+        let i = 0; let bootFinished = false;
+
+        function typeWriter() {
+            if (i < welcomeMessage.length && !bootFinished) {
+                document.getElementById("typewriterOutput").innerHTML += welcomeMessage.charAt(i);
+                i++; setTimeout(typeWriter, 30);
+            }
+        }
+        function endBootSequence() {
+            if (bootFinished) return;
+            bootFinished = true;
+            document.getElementById('welcomeScreen').classList.add('fade-out');
+            setTimeout(() => {
+                document.getElementById('welcomeScreen').style.display = 'none';
+                showToast("System Initialization Complete", "success");
+            }, 800);
+        }
+        window.addEventListener('keydown', endBootSequence);
+        document.getElementById('welcomeScreen').addEventListener('click', endBootSequence);
+
+        function showToast(message, type = "success") {
+            const container = document.getElementById('toastContainer');
+            const toast = document.createElement('div');
+            toast.className = `toast ${type === 'error' ? 'error' : ''}`;
+            toast.innerText = `> ${message}`;
+            container.appendChild(toast);
+            setTimeout(() => { if(container.contains(toast)) container.removeChild(toast); }, 4000);
+        }
+
+        // --- Supabase / Ticker Logic ---
+        const SUPABASE_URL = 'https://huwlolvzidzjdokyloyp.supabase.co';
+        const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imh1d2xvbHZ6aWR6amRva3lsb3lwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzExODc2MjksImV4cCI6MjA4Njc2MzYyOX0.APAK-vLlujxw-W6XcE5eRY5quQok07nOP-Cyxfn7MoQ';
+        const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+        const PIN = "1234";
+
+        async function fetchTicker() {
+            try {
+                const { data: ticks } = await sb.from('announcements').select('*').order('id', { ascending: false });
+                const container = document.getElementById('tickerItems');
+                if (!ticks || !ticks.length) {
+                    container.innerHTML = `<span class="tech-item">SYSTEM_STABLE</span><span class="tech-item">WAITING_FOR_BROADCAST</span>`;
+                } else {
+                    const items = ticks.map(a => `<span class="tech-item">${a.content.toUpperCase().replace(/\s/g, '_')}</span>`).join('');
+                    container.innerHTML = items + items + items; // Repeat for smooth loop
+                }
+            } catch (e) { console.error("Ticker sync failed"); }
+        }
+
+        async function updateNews() {
+            const n = document.getElementById('newsInput');
+            if(!n.value) return;
+            await sb.from('announcements').insert([{ content: n.value }]);
+            n.value = '';
+            showToast("Ticker Updated!");
+            fetchTicker();
+        }
+
+        // --- Admin Controls ---
+        function toggleMatrix() {
+            document.body.classList.toggle('matrix-mode');
+            const active = document.body.classList.contains('matrix-mode');
+            document.getElementById('ghostBtn').innerText = active ? "GHOST_MODE: ACTIVE" : "GHOST_MODE: OFF";
+            showToast(active ? "Ghost Mode Activated" : "Ghost Mode Deactivated");
+        }
+        function openAdminModal() { document.getElementById('adminAuthModal').classList.add('active'); }
+        function closeAdminModal() { document.getElementById('adminAuthModal').classList.remove('active'); document.getElementById('adminError').style.display='none';}
+        function verifyAdmin() {
+            if(document.getElementById('adminPinInput').value === PIN) {
+                closeAdminModal();
+                document.getElementById('landing-page').style.display = 'none';
+                document.getElementById('admin-panel').style.display = 'block';
+                showToast("System Root Access Granted");
+            } else {
+                document.getElementById('adminError').style.display = 'block';
+            }
+        }
+
+        // --- Downloader UI Logic ---
         document.getElementById('joinBtn').addEventListener('click', function() {
             let btn = this;
             btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Unlocking...';
@@ -134,7 +364,6 @@
             }, 1500); 
         });
 
-        // Dynamic Quality Switcher Logic
         const radioVideo = document.getElementById('radioVideo');
         const radioAudio = document.getElementById('radioAudio');
         const videoQuality = document.getElementById('videoQuality');
@@ -142,41 +371,32 @@
 
         function toggleQualitySelect() {
             if (radioAudio.checked) {
-                videoQuality.classList.add('hidden');
-                videoQuality.removeAttribute('name');
-                audioQuality.classList.remove('hidden');
-                audioQuality.setAttribute('name', 'quality');
+                videoQuality.classList.add('hidden'); videoQuality.removeAttribute('name');
+                audioQuality.classList.remove('hidden'); audioQuality.setAttribute('name', 'quality');
             } else {
-                audioQuality.classList.add('hidden');
-                audioQuality.removeAttribute('name');
-                videoQuality.classList.remove('hidden');
-                videoQuality.setAttribute('name', 'quality');
+                audioQuality.classList.add('hidden'); audioQuality.removeAttribute('name');
+                videoQuality.classList.remove('hidden'); videoQuality.setAttribute('name', 'quality');
             }
         }
         radioVideo.addEventListener('change', toggleQualitySelect);
         radioAudio.addEventListener('change', toggleQualitySelect);
-        toggleQualitySelect(); // Run once to set initial state
+        toggleQualitySelect();
 
-
-        // Background Download Logic & Modal Handlers
+        // --- FAST & FAIL-SAFE BACKGROUND DOWNLOAD FETCH ---
         document.getElementById('downloadForm').addEventListener('submit', async function(e) {
-            e.preventDefault(); // STOPS THE PAGE FROM RELOADING
-
+            e.preventDefault(); 
             const btn = document.getElementById('submitBtn');
             const loader = document.getElementById('loadingBox');
-            const statusTxt = document.getElementById('statusText');
             
-            // Switch UI to loading state
+            // Show Loading
             btn.classList.add('hidden');
-            statusTxt.classList.add('hidden');
             loader.classList.remove('hidden');
 
             try {
-                // Collect form data automatically
                 const formData = new URLSearchParams(new FormData(e.target)).toString();
                 
-                // NOTE: If testing locally or via a separate frontend, 
-                // change '/download' to 'https://YOUR_BACKEND.onrender.com/download'
+                // MAKE SURE TO REPLACE THIS URL IF YOUR PYTHON BACKEND IS HOSTED ELSEWHERE
+                // Defaulting to relative path assuming frontend/backend are hosted together.
                 const response = await fetch('/download', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
@@ -184,18 +404,14 @@
                 });
 
                 if (response.ok) {
-                    // Extract filename securely
                     let filename = `LeeTech_Download.${radioVideo.checked ? 'mp4' : 'mp3'}`;
                     const disposition = response.headers.get('content-disposition');
                     if (disposition && disposition.indexOf('attachment') !== -1) {
                         const filenameRegex = /filename[^;=\n]*=((['"]).*?\2|[^;\n]*)/;
                         const matches = filenameRegex.exec(disposition);
-                        if (matches != null && matches[1]) { 
-                            filename = matches[1].replace(/['"]/g, '');
-                        }
+                        if (matches != null && matches[1]) filename = matches[1].replace(/['"]/g, '');
                     }
 
-                    // Download the file via hidden link
                     const blob = await response.blob();
                     const downloadUrl = window.URL.createObjectURL(blob);
                     const a = document.createElement('a');
@@ -208,23 +424,23 @@
                     
                     showModal('success');
                 } else {
-                    const errorText = await response.text();
-                    throw new Error(errorText || "Server rejected the request.");
+                    // Trigger Fail-Safe if Server responds with 500, 502, 404, etc.
+                    throw new Error("SERVER_OFFLINE");
                 }
             } catch (error) {
-                let safeMsg = error.message;
-                if (safeMsg.includes('fetch')) safeMsg = "Server connection failed. Ensure backend is running.";
-                showModal('error', safeMsg);
+                // THE LEE TECH FAIL-SAFE MECHANISM
+                // Overrides standard error messages with your strict offline notification
+                const fallbackMessage = "SYSTEM OFFLINE OR SERVER OVERLOADED.<br><br>THIS WILL BE WORKED ON LATER BY LEE TECH.";
+                showModal('error', fallbackMessage);
             } finally {
-                // Reset form UI for the next attempt
+                // Reset UI
                 btn.classList.remove('hidden');
-                statusTxt.classList.remove('hidden');
                 loader.classList.add('hidden');
                 document.getElementById('url').value = '';
             }
         });
 
-        // Pop-up Modal Controls
+        // --- Result Modal System ---
         function showModal(type, msg = "") {
             const modal = document.getElementById('resultModal');
             const content = document.getElementById('modalContent');
@@ -232,8 +448,6 @@
             const error = document.getElementById('modalError');
 
             modal.classList.remove('hidden');
-            
-            // Small delay to trigger Tailwind animation
             setTimeout(() => {
                 modal.classList.remove('opacity-0');
                 content.classList.remove('scale-95');
@@ -247,7 +461,7 @@
                 success.classList.remove('hidden');
             } else {
                 error.classList.remove('hidden');
-                document.getElementById('errorMsg').innerText = msg;
+                document.getElementById('errorMsg').innerHTML = msg; // Allows HTML line breaks
             }
         }
 
@@ -258,11 +472,15 @@
             modal.classList.add('opacity-0');
             content.classList.remove('scale-100');
             content.classList.add('scale-95');
-            
-            setTimeout(() => {
-                modal.classList.add('hidden');
-            }, 300); // Matches transition duration
+            setTimeout(() => { modal.classList.add('hidden'); }, 300);
         }
+
+        // Initialize Data
+        window.onload = () => {
+            typeWriter();
+            fetchTicker();
+            setTimeout(endBootSequence, 3000);
+        };
     </script>
 </body>
 </html>
