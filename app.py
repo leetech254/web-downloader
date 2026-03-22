@@ -1,6 +1,7 @@
 import os
 import tempfile
 import uuid
+import shutil
 from flask import Flask, request, render_template, send_file
 import yt_dlp
 
@@ -23,15 +24,18 @@ def download():
     temp_dir = tempfile.mkdtemp()
     unique_filename = str(uuid.uuid4())
     
-    # ULTIMATE BASE CONFIGURATION (Bypasses bots and region locks)
+    # ULTIMATE BASE CONFIGURATION (Turbo Speed + Anti-Bot + Anti-Hang)
     ydl_opts = {
         'outtmpl': f'{temp_dir}/{unique_filename}.%(ext)s',
         'quiet': True,
         'noplaylist': True, 
         'nocheckcertificate': True,
         'geo_bypass': True, 
+        'socket_timeout': 30,  # Prevents the server from freezing on dead links
+        'concurrent_fragment_downloads': 10,  # TURBO MODE: Downloads 10 pieces at once!
         'http_headers': {   
             'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+            'Accept-Language': 'en-US,en;q=0.9',
         }
     }
 
@@ -44,12 +48,15 @@ def download():
         audio_quality = quality if quality in ['320', '192', '128'] else '192'
         ydl_opts.update({
             'format': 'bestaudio/best',
+            'writethumbnail': True, # Pro Feature: Grabs the cover art
             'postprocessors': [
                 {
                     'key': 'FFmpegExtractAudio',
                     'preferredcodec': 'mp3',
                     'preferredquality': audio_quality,
-                }
+                },
+                {'key': 'EmbedThumbnail'}, # Embeds Cover Art
+                {'key': 'FFmpegMetadata'}  # Embeds Title/Artist Info
             ],
         })
     else:
@@ -76,7 +83,8 @@ def download():
             # Locate the final file
             downloaded_file = None
             for file in os.listdir(temp_dir):
-                if file.startswith(unique_filename):
+                # Ignore raw thumbnails, find the actual video/audio file
+                if file.startswith(unique_filename) and not file.endswith(('.webp', '.jpg', '.png')):
                     downloaded_file = os.path.join(temp_dir, file)
                     break
             
@@ -84,6 +92,8 @@ def download():
                 # Clean the title so browsers don't block the download
                 clean_title = "".join([c for c in title if c.isalnum() or c in " -_"]).strip()
                 extension = downloaded_file.split('.')[-1]
+                
+                # Send the file to the user
                 return send_file(downloaded_file, as_attachment=True, download_name=f"{clean_title}.{extension}")
             else:
                 return "Error: Could not process the file. Please try a different link.", 500
