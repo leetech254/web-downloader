@@ -3,13 +3,17 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Ultimate Media Downloader</title>
+    <title>Ultimate Media Downloader | Lee Tech</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        .animate-fade-in { animation: fadeIn 0.5s ease-in-out forwards; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(-10px); } to { opacity: 1; transform: translateY(0); } }
+    </style>
 </head>
-<body class="bg-gradient-to-br from-gray-900 to-gray-800 text-white flex items-center justify-center min-h-screen p-4">
+<body class="bg-gradient-to-br from-gray-900 to-gray-800 text-white flex flex-col items-center justify-center min-h-screen p-4">
 
-    <div class="bg-gray-800 p-8 rounded-2xl shadow-2xl w-full max-w-lg border border-gray-700">
+    <div class="bg-gray-800 p-8 rounded-2xl shadow-2xl w-full max-w-lg border border-gray-700 relative z-10">
         <h1 class="text-3xl font-extrabold mb-2 text-center text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-purple-500">
             Universal Downloader
         </h1>
@@ -26,7 +30,7 @@
             </a>
         </div>
 
-        <form action="/download" method="POST" id="downloadForm" class="hidden">
+        <form action="/download" method="POST" id="downloadForm" class="hidden opacity-0">
             <div class="mb-5">
                 <label class="block text-sm font-semibold mb-2 text-gray-300" for="url">
                     <i class="fa-solid fa-link mr-2 text-blue-400"></i>Paste Video/Audio Link
@@ -35,20 +39,20 @@
                        class="w-full px-4 py-3 bg-gray-900 border border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition">
             </div>
 
-            <div class="mb-8">
+            <div class="mb-5">
                 <label class="block text-sm font-semibold mb-3 text-gray-300">
                     <i class="fa-solid fa-sliders mr-2 text-purple-400"></i>Select Format
                 </label>
                 <div class="grid grid-cols-2 gap-4">
                     <label class="cursor-pointer">
-                        <input type="radio" name="format" value="mp4" checked class="peer sr-only">
+                        <input type="radio" name="format" value="mp4" checked class="peer sr-only" id="radioVideo">
                         <div class="rounded-lg border border-gray-600 px-4 py-3 hover:bg-gray-700 peer-checked:bg-blue-600/20 peer-checked:border-blue-500 transition text-center">
                             <i class="fa-solid fa-video mb-1 text-xl block"></i>
                             <span class="font-medium text-sm">Video (MP4)</span>
                         </div>
                     </label>
                     <label class="cursor-pointer">
-                        <input type="radio" name="format" value="mp3" class="peer sr-only">
+                        <input type="radio" name="format" value="mp3" class="peer sr-only" id="radioAudio">
                         <div class="rounded-lg border border-gray-600 px-4 py-3 hover:bg-gray-700 peer-checked:bg-purple-600/20 peer-checked:border-purple-500 transition text-center">
                             <i class="fa-solid fa-music mb-1 text-xl block"></i>
                             <span class="font-medium text-sm">Audio (MP3)</span>
@@ -57,39 +61,89 @@
                 </div>
             </div>
 
+            <div class="mb-8">
+                <label class="block text-sm font-semibold mb-2 text-gray-300">
+                    <i class="fa-solid fa-gear mr-2 text-gray-400"></i>Select Quality/Size
+                </label>
+                
+                <select id="videoQuality" name="quality" class="w-full px-4 py-3 bg-gray-900 border border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-white">
+                    <option value="1080">1080p (High Quality - Larger Size)</option>
+                    <option value="720">720p (Standard Quality - Medium Size)</option>
+                    <option value="480">480p (Data Saver - Smaller Size)</option>
+                    <option value="best">Maximum Available</option>
+                </select>
+
+                <select id="audioQuality" class="hidden w-full px-4 py-3 bg-gray-900 border border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 text-white">
+                    <option value="320">320 kbps (Studio Quality)</option>
+                    <option value="192" selected>192 kbps (Standard Quality)</option>
+                    <option value="128">128 kbps (Data Saver)</option>
+                </select>
+            </div>
+
             <button type="submit" id="submitBtn" 
                     class="w-full bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-500 hover:to-purple-500 text-white font-bold py-3 px-4 rounded-lg transition duration-300 shadow-lg transform active:scale-95">
                 <i class="fa-solid fa-download mr-2"></i> Download Now
             </button>
             
-            <div id="loadingBox" class="hidden mt-6 text-center">
+            <div id="loadingBox" class="hidden mt-6 text-center bg-gray-900 p-4 rounded-lg border border-gray-700">
                 <i class="fa-solid fa-circle-notch fa-spin text-3xl text-blue-400 mb-2"></i>
-                <p class="text-sm text-yellow-400 font-medium">Extracting and processing media...</p>
-                <p class="text-xs text-gray-400 mt-1">Please do not close this page. High quality files take longer.</p>
+                <p class="text-sm text-yellow-400 font-medium">Processing your media...</p>
+                <p class="text-xs text-gray-400 mt-1">Please keep this page open. Large files may take a moment.</p>
             </div>
         </form>
     </div>
 
+    <footer class="mt-8 text-center relative z-10">
+        <p class="text-gray-400 text-sm font-medium tracking-wide">
+            Made with <i class="fa-solid fa-heart text-red-500 mx-1 animate-pulse"></i> by <span class="text-blue-400 font-bold tracking-wider">Lee Tech</span>
+        </p>
+    </footer>
+
     <script>
+        // WhatsApp Unlock Logic
         document.getElementById('joinBtn').addEventListener('click', function() {
             let btn = this;
             btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Unlocking...';
             setTimeout(function() {
                 document.getElementById('whatsapp-gate').classList.add('hidden');
-                document.getElementById('downloadForm').classList.remove('hidden');
-                document.getElementById('downloadForm').classList.add('animate-fade-in');
+                let form = document.getElementById('downloadForm');
+                form.classList.remove('hidden');
+                form.classList.add('animate-fade-in');
             }, 1500); 
         });
 
+        // Loading Screen Logic
         document.getElementById('downloadForm').addEventListener('submit', function() {
             document.getElementById('submitBtn').classList.add('hidden');
             document.getElementById('loadingBox').classList.remove('hidden');
         });
-    </script>
 
-    <style>
-        .animate-fade-in { animation: fadeIn 0.5s ease-in-out; }
-        @keyframes fadeIn { from { opacity: 0; transform: translateY(-10px); } to { opacity: 1; transform: translateY(0); } }
-    </style>
+        // Dynamic Quality Switcher Logic
+        const radioVideo = document.getElementById('radioVideo');
+        const radioAudio = document.getElementById('radioAudio');
+        const videoQuality = document.getElementById('videoQuality');
+        const audioQuality = document.getElementById('audioQuality');
+
+        function toggleQualitySelect() {
+            if (radioAudio.checked) {
+                videoQuality.classList.add('hidden');
+                videoQuality.removeAttribute('name');
+                audioQuality.classList.remove('hidden');
+                audioQuality.setAttribute('name', 'quality');
+            } else {
+                audioQuality.classList.add('hidden');
+                audioQuality.removeAttribute('name');
+                videoQuality.classList.remove('hidden');
+                videoQuality.setAttribute('name', 'quality');
+            }
+        }
+
+        // Listen for changes
+        radioVideo.addEventListener('change', toggleQualitySelect);
+        radioAudio.addEventListener('change', toggleQualitySelect);
+        
+        // Run once immediately to set the correct initial state
+        toggleQualitySelect();
+    </script>
 </body>
 </html>
