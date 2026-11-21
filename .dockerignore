@@ -1,0 +1,11 @@
+.git
+.gitignore
+.venv
+venv
+__pycache__
+*.py[cod]
+.env
+.env.*
+cookies.txt
+cookies*.txt
+test_*.py

@@ -1,407 +1,160 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>LEE TECH SERVICES | Elite Platform v10.2</title>
-    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;600;800&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
-    <script src="https://cdn.tailwindcss.com"></script>
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <style>
-        :root { 
-            --accent: #00ff88; --blue: #3b82f6; --red: #ff4757;
-            --bg: #010409; --card: #0d1117; --text: #f8fafc;
-            --border: rgba(255,255,255,0.08);
-            --glass: rgba(1, 4, 9, 0.9);
-        }
-
-        .matrix-mode { --accent: #00ff41; --blue: #008f11; --bg: #000500; --card: #001100; --border: #003b00; }
-        * { box-sizing: border-box; transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1); }
-        html { scroll-behavior: smooth; }
-        body { font-family: 'Plus Jakarta Sans', sans-serif; background: var(--bg); color: var(--text); margin: 0; padding: 0; line-height: 1.6; overflow-x: hidden; }
-
-        /* Boot Sequence */
-        #welcomeScreen { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: #000; z-index: 9999; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 20px; transition: opacity 0.5s ease, visibility 0.5s ease; }
-        #welcomeScreen.fade-out { opacity: 0; visibility: hidden; }
-        .typewriter-text { font-family: 'JetBrains Mono', monospace; color: var(--accent); font-size: 1.2rem; text-align: center; margin-bottom: 20px; white-space: pre-line; min-height: 80px; text-shadow: 0 0 10px rgba(0,255,136,0.5); }
-        .loader-bar-container { width: 100%; max-width: 300px; height: 4px; background: #222; border-radius: 2px; overflow: hidden; margin-top: 10px; }
-        .loader-progress { width: 0%; height: 100%; background: var(--accent); animation: loadProgress 2s ease-in-out forwards; }
-        @keyframes loadProgress { 0% { width: 0%; } 50% { width: 70%; } 100% { width: 100%; } }
-
-        /* Toast Notifications */
-        #toastContainer { position: fixed; top: 20px; right: 20px; z-index: 4000; display: flex; flex-direction: column; gap: 10px; pointer-events: none; }
-        .toast { background: var(--card); border-left: 4px solid var(--accent); color: var(--text); padding: 15px 20px; border-radius: 8px; font-family: 'JetBrains Mono', monospace; font-size: 0.8rem; box-shadow: 0 5px 15px rgba(0,0,0,0.5); transform: translateX(120%); animation: slideInToast 0.3s forwards, fadeOutToast 0.3s 3s forwards; }
-        .toast.error { border-left-color: var(--red); }
-        @keyframes slideInToast { to { transform: translateX(0); } }
-        @keyframes fadeOutToast { to { opacity: 0; transform: translateY(-10px); } }
-
-        /* Legacy Styling */
-        .glow { position: fixed; width: 500px; height: 500px; background: var(--blue); filter: blur(200px); opacity: 0.1; z-index: -1; border-radius: 50%; pointer-events: none; }
-        .tech-marquee { background: #000; border-bottom: 1px solid var(--border); padding: 12px 0; overflow: hidden; display: flex; font-family: 'JetBrains Mono'; }
-        @keyframes marquee { 0% { transform: translateX(0); } 100% { transform: translateX(-50%); } }
-        .marquee-content { display: flex; white-space: nowrap; animation: marquee 30s linear infinite; gap: 60px; }
-        .tech-item { color: #475569; font-weight: 800; font-size: 0.75rem; letter-spacing: 2px; }
-
-        nav { position: sticky; top: 0; background: var(--glass); backdrop-filter: blur(20px); border-bottom: 1px solid var(--border); z-index: 1000; padding: 15px 5%; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px; }
-        .logo { font-weight: 800; font-size: 1.1rem; letter-spacing: -1.5px; font-family: 'JetBrains Mono'; }
-        .btn { padding: 12px 20px; border-radius: 12px; font-weight: 700; text-decoration: none; display: inline-flex; align-items: center; gap: 10px; border: none; font-size: 0.85rem; cursor: pointer; justify-content: center; transition: 0.2s; }
-        .btn-wa { background: var(--accent); color: #000; }
-        .btn-wa:hover { opacity: 0.8; transform: scale(0.98); }
-        .btn-outline { border: 1px solid var(--border); color: var(--text); background: transparent; }
-        .btn-outline:hover { background: var(--border); }
-
-        .animate-fade-in { animation: fadeIn 0.4s ease-out forwards; }
-        @keyframes fadeIn { from { opacity: 0; transform: translateY(-5px); } to { opacity: 1; transform: translateY(0); } }
-
-        /* Admin UI */
-        .modal-overlay-admin { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); backdrop-filter: blur(5px); display: flex; align-items: center; justify-content: center; z-index: 3000; opacity: 0; visibility: hidden; transition: 0.3s; }
-        .modal-overlay-admin.active { opacity: 1; visibility: visible; }
-        .modal-content-admin { background: var(--card); border: 1px solid var(--accent); padding: 30px; border-radius: 20px; width: 90%; max-width: 400px; transform: scale(0.9); transition: 0.3s; text-align: center; }
-        .modal-overlay-admin.active .modal-content-admin { transform: scale(1); }
-        #admin-panel { display: none; padding: 30px 5%; font-family: 'JetBrains Mono'; }
-    </style>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="dark">
+  <meta name="theme-color" content="#0b1020">
+  <title>Media Downloader</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='app.css') }}">
+  <script src="{{ url_for('static', filename='app.js') }}" defer></script>
 </head>
-<body class="relative min-h-screen flex flex-col">
+<body>
+  <main class="shell">
+    <header class="topbar">
+      <a class="brand" href="/" aria-label="Media Downloader home"><span class="brand-mark" aria-hidden="true">↓</span> Media Downloader</a>
+      <span class="status"><span class="status-dot" aria-hidden="true"></span> Ready</span>
+    </header>
 
-    <div id="welcomeScreen">
-        <div class="typewriter-text" id="typewriterOutput"></div>
-        <div class="loader-bar-container"><div class="loader-progress"></div></div>
-        <p style="color: #475569; font-family: 'JetBrains Mono'; font-size: 0.6rem; margin-top: 20px;">[PRESS ANY KEY TO SKIP]</p>
-    </div>
+    <section class="hero" aria-labelledby="page-title">
+      <p class="eyebrow">A simple media utility</p>
+      <h1 id="page-title">Save media for<br><span>offline viewing.</span></h1>
+      <p class="intro">Paste a public link from a supported social or media site. The downloader detects the source automatically.</p>
+    </section>
 
-    <div id="toastContainer"></div>
-    <div class="glow" id="mouseGlow"></div>
-    <div class="tech-marquee"><div class="marquee-content" id="tickerItems"></div></div>
-
-    <nav>
-        <div class="logo">LEE_TECH_SERVICES <span style="color:var(--accent)">[v10.2]</span></div>
-        <div class="nav-links" style="display:flex; gap:8px;">
-            <button class="btn btn-outline" onclick="toggleMatrix()" id="ghostBtn">GHOST_MODE: OFF</button>
-            <a href="https://whatsapp.com/channel/0029VbBu1EgJUM2iVI3tPE0S" target="_blank" class="btn btn-wa"><i class="fa-brands fa-whatsapp"></i> Join Tech Channel</a> 
+    <section class="panel" aria-label="Download options">
+      <form id="download-form" action="/download" method="post" enctype="multipart/form-data">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+        <label class="field-label" for="url">Media URL</label>
+        <div class="url-row">
+          <input id="url" name="url" type="url" required maxlength="2048" autocomplete="url" inputmode="url" placeholder="https://…" aria-describedby="url-help">
+          <button id="preview-button" class="button button-primary" type="button">Preview link</button>
         </div>
-    </nav>
+        {% if cookie_auth_enabled %}
+        <p id="url-help" class="hint">Use a link to one post or media item. Account-restricted content works only with a valid cookie file for your own account.</p>
+        {% else %}
+        <p id="url-help" class="hint">Use a public link to one post or media item. Cookie authentication is disabled on this server.</p>
+        {% endif %}
 
-    <div id="landing-page" class="flex-grow flex items-center justify-center p-4">
-        <div class="bg-gray-800 p-8 rounded-2xl shadow-2xl w-full max-w-lg border border-gray-700 relative z-10 mt-10">
-            <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom: 20px;">
-                <div>
-                    <h1 class="text-3xl font-extrabold mb-1 text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-purple-500">
-                        Media Extractor
-                    </h1>
-                    <p class="text-gray-400 text-xs font-mono">CORE_TOOL_ACTIVE // v10.2</p>
-                </div>
-                <div class="flex flex-col items-end gap-2">
-                    <span class="bg-green-500/10 text-green-400 border border-green-500/20 px-3 py-1 rounded-full text-[10px] font-bold animate-pulse">
-                        SERVER ONLINE
-                    </span>
-                    <span class="bg-blue-500/10 text-blue-400 border border-blue-500/20 px-3 py-1 rounded-full text-[10px] font-bold">
-                        <i class="fa-solid fa-bolt text-yellow-400 mr-1"></i>TURBO MODE
-                    </span>
-                </div>
+        {% if browser_cookies_enabled %}
+        <details class="cookie-panel browser-cookie-panel">
+          <summary>Use cookies from a browser profile on this machine (advanced)</summary>
+          <p class="cookie-warning">This reads the selected browser profile on the computer running this Flask app, not from a visitor's remote browser. Use only on your own computer, through localhost. Close the browser first if its profile is locked. Browser extension-only storage is not scanned.</p>
+          <label class="field-label" for="browser-cookie-browser">Browser</label>
+          <select id="browser-cookie-browser" name="browser_cookie_browser">
+            <option value="">Do not use a browser profile</option>
+            {% for browser in browser_cookie_sources %}
+            <option value="{{ browser }}">{{ browser|capitalize }}</option>
+            {% endfor %}
+          </select>
+          <label class="field-label browser-profile-label" for="browser-cookie-profile">Profile name <span class="hint-inline">(optional; blank uses yt-dlp's default profile)</span></label>
+          <input id="browser-cookie-profile" name="browser_cookie_profile" type="text" maxlength="80" autocomplete="off" placeholder="Default or Profile 1">
+          <label class="field-label browser-profile-label" for="browser-cookie-keyring">Keyring (optional)</label>
+          <select id="browser-cookie-keyring" name="browser_cookie_keyring">
+            <option value="">Automatic</option>
+            <option value="basictext">Basic text</option>
+            <option value="gnomekeyring">GNOME Keyring</option>
+            <option value="kwallet">KWallet</option>
+            <option value="kwallet5">KWallet 5</option>
+            <option value="kwallet6">KWallet 6</option>
+          </select>
+          <label class="cookie-ack browser-cookie-ack"><input id="browser-cookie-ack" type="checkbox" name="browser_cookie_ack" value="1"> I authorize this local app to read cookies from the selected profile for this request.</label>
+        </details>
+        {% else %}
+        <p class="hint cookie-disabled">Browser-profile cookie access is disabled by the server. The operator can enable it with <code>ENABLE_BROWSER_COOKIES=1</code>; it remains localhost-only.</p>
+        {% endif %}
+
+        {% if cookie_auth_enabled %}
+        <details class="cookie-panel">
+          <summary>Use a cookie file for your own account (advanced)</summary>
+          <p class="cookie-warning">Only use this on a server you control and trust, over HTTPS. Cookies grant access to your account. Export a Netscape-format cookie file for the target site only; never upload it to a public/shared downloader.</p>
+          <div id="cookie-manager" data-max-bytes="{{ max_cookie_bytes }}">
+            <input id="cookies" name="cookies" class="sr-only-file" type="file" accept=".txt,text/plain" tabindex="-1" aria-label="Select a Netscape cookie file">
+            <div id="cookie-dropzone" class="cookie-dropzone">
+              <div id="cookie-drop-target" class="cookie-drop-target" role="button" tabindex="0" aria-label="Choose or drop a Netscape cookie file" aria-describedby="cookie-local-hint">
+                <span class="drop-icon" aria-hidden="true">＋</span>
+                <strong>Drop a cookie file here</strong>
+                <span class="drop-caption">Netscape-format .txt</span>
+              </div>
+              <button id="choose-cookie" class="button button-secondary" type="button">Browse files</button>
             </div>
-            
-            <div id="whatsapp-gate" class="text-center py-6 bg-gray-750 rounded-xl border border-gray-600">
-                <i class="fa-brands fa-whatsapp text-5xl text-green-500 mb-4 animate-bounce"></i>
-                <h2 class="text-xl font-bold mb-2 text-white">Unlock the Tool</h2>
-                <p class="mb-6 text-gray-300 text-sm px-4">Join our official WhatsApp channel to get free, unlimited access to this downloader.</p>
-                <a href="https://whatsapp.com/channel/0029VbBu1EgJUM2iVI3tPE0S" target="_blank" id="joinBtn"
-                   class="inline-block w-3/4 bg-green-600 hover:bg-green-500 text-white font-bold py-3 px-4 rounded-lg transition duration-300 shadow-[0_0_15px_rgba(34,197,94,0.5)]">
-                    Join to Unlock
-                </a>
+            <div id="cookie-file-state" class="cookie-file-state" hidden aria-live="polite">
+              <span class="file-type" aria-hidden="true">TXT</span>
+              <div class="file-copy"><strong id="cookie-file-name"></strong><span id="cookie-file-size" class="hint"></span></div>
+              <button id="remove-cookie" class="button button-secondary remove-file" type="button">Remove</button>
             </div>
+            <p id="cookie-local-hint" class="cookie-local-hint">The file stays selected in this tab. It is sent only when you submit Preview or Download. Maximum size: {{ (max_cookie_bytes / 1048576)|round(2) }} MiB.</p>
+            <p id="cookie-message" class="cookie-message" role="status" aria-live="polite" hidden></p>
+            <label class="cookie-ack"><input id="cookie-ack" type="checkbox" name="cookie_ack" value="1"> I understand this sends account cookies to this server for this request.</label>
+          </div>
+        </details>
+        {% else %}
+        <p class="hint cookie-disabled">Cookie authentication is disabled by the server. The operator can enable it with <code>ENABLE_COOKIE_AUTH=1</code>.</p>
+        {% endif %}
 
-            <form action="/download" method="POST" id="downloadForm" class="hidden opacity-0">
-                <div class="mb-5">
-                    <label class="block text-sm font-semibold mb-2 text-gray-300" for="url">
-                        <i class="fa-solid fa-link mr-2 text-blue-400"></i>Target URL (YT, IG, TikTok, X)
-                    </label>
-                    <input type="url" id="url" name="url" required placeholder="https://youtube.com/..." 
-                           class="w-full px-4 py-3 bg-gray-900 border border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-white transition shadow-inner">
-                </div>
-
-                <div class="mb-5">
-                    <label class="block text-sm font-semibold mb-3 text-gray-300">
-                        <i class="fa-solid fa-sliders mr-2 text-purple-400"></i>Select Format
-                    </label>
-                    <div class="grid grid-cols-2 gap-4">
-                        <label class="cursor-pointer">
-                            <input type="radio" name="format" value="mp4" checked class="peer sr-only" id="radioVideo">
-                            <div class="rounded-lg border border-gray-600 px-4 py-3 hover:bg-gray-700 peer-checked:bg-blue-600/20 peer-checked:border-blue-500 transition text-center shadow-md">
-                                <i class="fa-solid fa-video mb-1 text-xl block"></i>
-                                <span class="font-medium text-sm">Video (MP4)</span>
-                            </div>
-                        </label>
-                        <label class="cursor-pointer">
-                            <input type="radio" name="format" value="mp3" class="peer sr-only" id="radioAudio">
-                            <div class="rounded-lg border border-gray-600 px-4 py-3 hover:bg-gray-700 peer-checked:bg-purple-600/20 peer-checked:border-purple-500 transition text-center shadow-md">
-                                <i class="fa-solid fa-music mb-1 text-xl block"></i>
-                                <span class="font-medium text-sm">Audio (MP3)</span>
-                            </div>
-                        </label>
-                    </div>
-                </div>
-
-                <div class="mb-8">
-                    <label class="block text-sm font-semibold mb-2 text-gray-300">
-                        <i class="fa-solid fa-bolt mr-2 text-yellow-400"></i>Extraction Quality
-                    </label>
-                    <select id="videoQuality" name="quality" class="w-full px-4 py-3 bg-gray-900 border border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-white cursor-pointer">
-                        <option value="1080">1080p (High Quality - Larger Size)</option>
-                        <option value="720">720p (Standard Quality - Medium Size)</option>
-                        <option value="480">480p (Data Saver - Smaller Size)</option>
-                        <option value="best">Maximum Available Format</option>
-                    </select>
-
-                    <select id="audioQuality" class="hidden w-full px-4 py-3 bg-gray-900 border border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 text-white cursor-pointer">
-                        <option value="320">320 kbps (Studio Quality)</option>
-                        <option value="192" selected>192 kbps (Standard Quality)</option>
-                        <option value="128">128 kbps (Data Saver)</option>
-                    </select>
-                </div>
-
-                <button type="submit" id="submitBtn" 
-                        class="w-full bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-500 hover:to-purple-500 text-white font-bold py-3 px-4 rounded-lg transition duration-200 shadow-lg transform active:scale-95 flex justify-center items-center">
-                    <i class="fa-solid fa-bolt mr-2 text-yellow-300"></i> INITIATE TURBO EXTRACTION
-                </button>
-
-                <div id="loadingBox" class="hidden mt-4 text-center bg-gray-900 p-5 rounded-lg border border-gray-700 shadow-inner">
-                    <i class="fa-solid fa-circle-notch fa-spin text-3xl text-blue-400 mb-3 block"></i>
-                    <p class="text-sm text-blue-400 font-mono font-bold animate-pulse">BYPASSING SECURITY... EXTRACTING...</p>
-                    <div class="w-full bg-gray-800 h-1.5 mt-3 rounded-full overflow-hidden">
-                        <div class="bg-blue-500 h-full w-1/2 animate-[scan_1s_ease-in-out_infinite_alternate]"></div>
-                    </div>
-                </div>
-            </form>
-        </div>
-    </div>
-
-    <div id="admin-panel">
-        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:30px; border-bottom:1px solid var(--border); padding-bottom:15px; flex-wrap: wrap; gap: 10px;">
-            <h2 style="font-size: 1.2rem; margin: 0; color: white;">SYSTEM_ROOT_V10</h2>
-            <button class="btn" style="background:var(--red); color:white" onclick="location.reload()">EXIT_ROOT</button>
-        </div>
-        <div class="admin-card">
-            <h3 style="font-size: 1rem; color: white;">Broadcast Ticker</h3>
-            <input type="text" id="newsInput" placeholder="New announcement...">
-            <button class="btn btn-outline" style="width:100%; color: white;" onclick="updateNews()">SYNC_TICKER</button>
-        </div>
-    </div>
-
-    <div id="resultModal" class="fixed inset-0 bg-black/90 backdrop-blur-md z-[5000] flex items-center justify-center hidden opacity-0 transition-opacity duration-200 p-4">
-        <div class="bg-gray-800 border border-gray-600 p-8 rounded-2xl shadow-2xl max-w-sm w-full text-center relative transform scale-95 transition-transform duration-200" id="modalContent">
-            
-            <div id="modalSuccess" class="hidden">
-                <i class="fa-solid fa-circle-check text-6xl text-green-500 mb-4 shadow-green-500/50 drop-shadow-lg"></i>
-                <h3 class="text-2xl font-bold text-green-400 mb-2 font-mono">SUCCESS</h3>
-                <p class="text-gray-300 text-sm mb-6">Media extraction complete. File is downloading to your device.</p>
-                <button onclick="closeModal()" class="w-full bg-gray-700 hover:bg-gray-600 text-white font-bold py-3 px-4 rounded-lg transition font-mono">ACKNOWLEDGE</button>
+        <div class="options-grid">
+          <fieldset>
+            <legend>Output format</legend>
+            <div class="choice-row">
+              <label class="choice"><input type="radio" name="format" value="mp4" checked><span>Video <small>MP4</small></span></label>
+              <label class="choice"><input type="radio" name="format" value="mp3"><span>Audio <small>MP3</small></span></label>
+              <label class="choice"><input type="radio" name="format" value="original"><span>Auto <small>Photos / original</small></span></label>
             </div>
-
-            <div id="modalError" class="hidden">
-                <i class="fa-solid fa-triangle-exclamation text-6xl text-red-500 mb-4 shadow-red-500/50 drop-shadow-lg animate-pulse"></i>
-                <h3 class="text-xl font-bold text-red-400 mb-2 font-mono">EXTRACTION FAILED</h3>
-                <div class="bg-red-900/30 border border-red-500/30 p-4 rounded-lg mb-6 text-left">
-                    <p id="errorMsg" class="text-gray-200 text-sm font-mono leading-relaxed">
-                        SYSTEM OFFLINE OR SERVER OVERLOADED.<br><br>THIS WILL BE WORKED ON LATER BY LEE TECH.
-                    </p>
-                </div>
-                <button onclick="closeModal()" class="w-full bg-red-600 hover:bg-red-500 text-white font-bold py-3 px-4 rounded-lg transition font-mono shadow-lg">CLOSE</button>
-            </div>
+          </fieldset>
+          <div>
+            <label class="field-label" for="video-quality" id="video-label">Video quality</label>
+            <select id="video-quality" name="quality">
+              <option value="1080" selected>Up to 1080p</option>
+              <option value="2160">Up to 2160p (4K)</option>
+              <option value="1440">Up to 1440p</option>
+              <option value="720">Up to 720p</option>
+              <option value="480">Up to 480p</option>
+              <option value="360">Up to 360p</option>
+              <option value="best">Best available</option>
+            </select>
+            <label class="field-label hidden" for="audio-quality" id="audio-label">MP3 bitrate</label>
+            <select id="audio-quality" class="hidden" aria-labelledby="audio-label">
+              <option value="320">320 kbps</option>
+              <option value="256">256 kbps</option>
+              <option value="192" selected>192 kbps</option>
+              <option value="128">128 kbps</option>
+            </select>
+          </div>
         </div>
-    </div>
 
-    <div class="modal-overlay-admin" id="adminAuthModal">
-        <div class="modal-content-admin">
-            <h2 style="margin-top:0; color: var(--accent); font-family: 'JetBrains Mono';">SYSTEM_AUTH</h2>
-            <p style="font-size: 0.8rem; color: #94a3b8; margin-bottom: 20px;">Enter core access credentials.</p>
-            <input type="password" id="adminPinInput" placeholder="Enter Root PIN" style="text-align: center; letter-spacing: 5px; font-weight: bold; width: 100%; background: #050810; border: 1px solid var(--border); padding: 12px; border-radius: 10px; color: white;">
-            <div style="display: flex; gap: 10px; margin-top: 15px;">
-                <button class="btn btn-wa" style="flex: 1;" onclick="verifyAdmin()">AUTHORIZE</button>
-                <button class="btn btn-outline" style="flex: 1; color: white;" onclick="closeAdminModal()">CANCEL</button>
-            </div>
-            <p id="adminError" style="color: var(--red); display: none; font-size: 0.8rem; margin-top: 15px; font-family: 'JetBrains Mono';">ACCESS DENIED. INCORRECT PIN.</p>
+        <div id="message" class="message" role="status" aria-live="polite" hidden></div>
+
+        <article id="preview" class="preview" hidden aria-live="polite">
+          <img id="preview-image" alt="" hidden>
+          <div class="preview-copy">
+            <p class="preview-kicker">LINK PREVIEW</p>
+            <h2 id="preview-title"></h2>
+            <p id="preview-details" class="hint"></p>
+          </div>
+        </article>
+
+        <div class="action-row">
+          <button id="download-button" class="button button-download" type="submit" disabled>Download media</button>
+          <p class="legal">Only download content you have permission to save. Respect copyright and each site's terms.</p>
         </div>
-    </div>
+        <div id="loading" class="loading" hidden role="status" aria-live="polite">
+          <span class="spinner" aria-hidden="true"></span>
+          <span>Your file is being prepared. The browser will start the download when it's ready.</span>
+        </div>
+      </form>
+    </section>
 
-    <footer class="mt-8 text-center relative z-10 pb-8 border-t border-gray-800 pt-8">
-        <p class="text-gray-500 text-xs font-mono tracking-widest mb-2">© 2026 LEE TECH SERVICES // CLOUD_SYNC_ACTIVE</p>
-        <p class="text-gray-400 text-sm font-medium tracking-wide">
-            Made with <i class="fa-solid fa-heart text-red-500 mx-1 animate-pulse"></i> by <span class="text-blue-400 font-bold tracking-wider">Lee Tech</span>
-        </p>
-        <button onclick="openAdminModal()" class="text-gray-600 text-[10px] mt-4 hover:text-gray-400 transition font-mono uppercase tracking-widest bg-transparent border-none cursor-pointer">Root_Access</button>
+    <section class="platform-panel" aria-labelledby="platform-title">
+      <h2 id="platform-title">Platform coverage</h2>
+      <p class="hint">Examples available in this installed extractor build</p>
+      <div id="platform-list" class="platform-list" aria-live="polite"><span class="platform-chip">Loading…</span></div>
+      <p id="platform-note" class="platform-note">Coverage is URL-specific and can change when platforms change their sites.</p>
+    </section>
+
+    <footer>
+      <p>Downloads are processed temporarily on the server and removed after transfer.</p>
+      <a href="https://github.com/leetech254/web-downloader" rel="noreferrer">Open-source project</a>
     </footer>
-
-    <script>
-        const welcomeMessage = "WELCOME TO LEE TECH SERVICES\n\n> Initializing Core Systems...\n> Establishing Secure Connection...";
-        let i = 0; let bootFinished = false;
-
-        function typeWriter() {
-            if (i < welcomeMessage.length && !bootFinished) {
-                document.getElementById("typewriterOutput").innerHTML += welcomeMessage.charAt(i);
-                i++; setTimeout(typeWriter, 15); // SPED UP TYPING
-            }
-        }
-        function endBootSequence() {
-            if (bootFinished) return;
-            bootFinished = true;
-            document.getElementById('welcomeScreen').classList.add('fade-out');
-            setTimeout(() => { document.getElementById('welcomeScreen').style.display = 'none'; }, 400);
-        }
-        window.addEventListener('keydown', endBootSequence);
-        document.getElementById('welcomeScreen').addEventListener('click', endBootSequence);
-
-        function showToast(message, type = "success") {
-            const container = document.getElementById('toastContainer');
-            const toast = document.createElement('div');
-            toast.className = `toast ${type === 'error' ? 'error' : ''}`;
-            toast.innerText = `> ${message}`;
-            container.appendChild(toast);
-            setTimeout(() => { if(container.contains(toast)) container.removeChild(toast); }, 3000);
-        }
-
-        const SUPABASE_URL = 'https://huwlolvzidzjdokyloyp.supabase.co';
-        const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imh1d2xvbHZ6aWR6amRva3lsb3lwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzExODc2MjksImV4cCI6MjA4Njc2MzYyOX0.APAK-vLlujxw-W6XcE5eRY5quQok07nOP-Cyxfn7MoQ';
-        const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
-        const PIN = "1234";
-
-        async function fetchTicker() {
-            try {
-                const { data: ticks } = await sb.from('announcements').select('*').order('id', { ascending: false });
-                const container = document.getElementById('tickerItems');
-                if (ticks && ticks.length) {
-                    const items = ticks.map(a => `<span class="tech-item">${a.content.toUpperCase().replace(/\s/g, '_')}</span>`).join('');
-                    container.innerHTML = items + items + items;
-                }
-            } catch (e) {}
-        }
-
-        async function updateNews() {
-            const n = document.getElementById('newsInput');
-            if(!n.value) return;
-            await sb.from('announcements').insert([{ content: n.value }]);
-            n.value = ''; showToast("Ticker Updated!"); fetchTicker();
-        }
-
-        function toggleMatrix() { document.body.classList.toggle('matrix-mode'); }
-        function openAdminModal() { document.getElementById('adminAuthModal').classList.add('active'); }
-        function closeAdminModal() { document.getElementById('adminAuthModal').classList.remove('active'); document.getElementById('adminError').style.display='none';}
-        function verifyAdmin() {
-            if(document.getElementById('adminPinInput').value === PIN) {
-                closeAdminModal();
-                document.getElementById('landing-page').style.display = 'none';
-                document.getElementById('admin-panel').style.display = 'block';
-            } else { document.getElementById('adminError').style.display = 'block'; }
-        }
-
-        document.getElementById('joinBtn').addEventListener('click', function() {
-            this.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Unlocking...';
-            setTimeout(() => {
-                document.getElementById('whatsapp-gate').classList.add('hidden');
-                document.getElementById('downloadForm').classList.remove('hidden');
-                document.getElementById('downloadForm').classList.add('animate-fade-in');
-            }, 800); // SPED UP UNLOCK
-        });
-
-        const radioVideo = document.getElementById('radioVideo');
-        const radioAudio = document.getElementById('radioAudio');
-        const videoQuality = document.getElementById('videoQuality');
-        const audioQuality = document.getElementById('audioQuality');
-
-        function toggleQualitySelect() {
-            if (radioAudio.checked) {
-                videoQuality.classList.add('hidden'); videoQuality.removeAttribute('name');
-                audioQuality.classList.remove('hidden'); audioQuality.setAttribute('name', 'quality');
-            } else {
-                audioQuality.classList.add('hidden'); audioQuality.removeAttribute('name');
-                videoQuality.classList.remove('hidden'); videoQuality.setAttribute('name', 'quality');
-            }
-        }
-        radioVideo.addEventListener('change', toggleQualitySelect);
-        radioAudio.addEventListener('change', toggleQualitySelect);
-        toggleQualitySelect();
-
-        // FAST FETCH LOGIC
-        document.getElementById('downloadForm').addEventListener('submit', async function(e) {
-            e.preventDefault(); 
-            const btn = document.getElementById('submitBtn');
-            const loader = document.getElementById('loadingBox');
-            
-            btn.classList.add('hidden');
-            loader.classList.remove('hidden');
-
-            try {
-                const formData = new URLSearchParams(new FormData(e.target)).toString();
-                
-                // IF USING EXTERNAL BACKEND, CHANGE '/download' TO YOUR FULL RENDER URL
-                const response = await fetch('/download', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-                    body: formData
-                });
-
-                if (response.ok) {
-                    let filename = `LeeTech_Turbo.${radioVideo.checked ? 'mp4' : 'mp3'}`;
-                    const disposition = response.headers.get('content-disposition');
-                    if (disposition && disposition.indexOf('attachment') !== -1) {
-                        const matches = /filename[^;=\n]*=((['"]).*?\2|[^;\n]*)/.exec(disposition);
-                        if (matches != null && matches[1]) filename = matches[1].replace(/['"]/g, '');
-                    }
-
-                    const blob = await response.blob();
-                    const downloadUrl = window.URL.createObjectURL(blob);
-                    const a = document.createElement('a');
-                    a.href = downloadUrl; a.download = filename;
-                    document.body.appendChild(a); a.click(); a.remove();
-                    window.URL.revokeObjectURL(downloadUrl);
-                    
-                    showModal('success');
-                } else {
-                    throw new Error("SERVER_OFFLINE");
-                }
-            } catch (error) {
-                // THE LEE TECH FAIL-SAFE
-                showModal('error', "SYSTEM OFFLINE OR SERVER OVERLOADED.<br><br>THIS WILL BE WORKED ON LATER BY LEE TECH.");
-            } finally {
-                btn.classList.remove('hidden');
-                loader.classList.add('hidden');
-                document.getElementById('url').value = '';
-            }
-        });
-
-        function showModal(type, msg = "") {
-            const modal = document.getElementById('resultModal');
-            const content = document.getElementById('modalContent');
-            modal.classList.remove('hidden');
-            setTimeout(() => {
-                modal.classList.remove('opacity-0');
-                content.classList.remove('scale-95'); content.classList.add('scale-100');
-            }, 10);
-
-            document.getElementById('modalSuccess').classList.add('hidden');
-            document.getElementById('modalError').classList.add('hidden');
-
-            if (type === 'success') {
-                document.getElementById('modalSuccess').classList.remove('hidden');
-            } else {
-                document.getElementById('modalError').classList.remove('hidden');
-                document.getElementById('errorMsg').innerHTML = msg; 
-            }
-        }
-
-        function closeModal() {
-            const modal = document.getElementById('resultModal');
-            const content = document.getElementById('modalContent');
-            modal.classList.add('opacity-0');
-            content.classList.remove('scale-100'); content.classList.add('scale-95');
-            setTimeout(() => { modal.classList.add('hidden'); }, 200);
-        }
-
-        window.onload = () => {
-            typeWriter();
-            fetchTicker();
-            setTimeout(endBootSequence, 1500); // SPED UP BOOT
-        };
-    </script>
+  </main>
 </body>
 </html>

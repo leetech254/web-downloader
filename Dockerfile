@@ -1,23 +1,23 @@
-# Use an official Python runtime as a parent image
-FROM python:3.10-slim
+FROM python:3.12-slim
 
-# Install ffmpeg for yt-dlp media processing
-RUN apt-get update && \
-    apt-get install -y ffmpeg && \
-    rm -rf /var/lib/apt/lists/*
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1 \
+    PORT=5000
 
-# Set the working directory in the container
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends ffmpeg ca-certificates \
+    && rm -rf /var/lib/apt/lists/* \
+    && groupadd --system app \
+    && useradd --system --gid app --home-dir /app --create-home app
+
 WORKDIR /app
-
-# Copy requirements and install them
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
+COPY --chown=app:app . .
+USER app
 
-# Copy the rest of your app's code into the container
-COPY . .
-
-# Make port 5000 available to the outside
 EXPOSE 5000
+HEALTHCHECK --interval=30s --timeout=3s --start-period=10s --retries=3 \
+  CMD-SHELL python -c "import os; from urllib.request import urlopen; urlopen('http://127.0.0.1:%s/healthz' % os.getenv('PORT', '5000'), timeout=2)" || exit 1
 
-# Command to run the application
-CMD ["python", "app.py"]
+CMD ["sh", "-c", "gunicorn --bind 0.0.0.0:${PORT} --workers 1 --threads 4 --timeout 360 --access-logfile - --error-logfile - app:app"]
