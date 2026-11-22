@@ -29,6 +29,6 @@ USER app
 
 EXPOSE 3000
 HEALTHCHECK --interval=30s --timeout=3s --start-period=10s --retries=3 \
-  CMD-SHELL python -c "import os; from urllib.request import urlopen; urlopen('http://127.0.0.1:%s/healthz' % os.getenv('PORT', '3000'), timeout=2)" || exit 1
+  CMD ["python", "-c", "import os; from urllib.request import urlopen; urlopen('http://127.0.0.1:%s/healthz' % os.getenv('PORT', '3000'), timeout=2)"]
 
 CMD ["sh", "-c", "gunicorn --bind 0.0.0.0:${PORT} --workers 1 --threads 4 --timeout 360 --access-logfile /dev/null --error-logfile - app:app"]
