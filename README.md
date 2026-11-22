@@ -12,13 +12,14 @@ A small Flask interface around [yt-dlp](https://github.com/yt-dlp/yt-dlp) for pr
 - A browser-only cookie-file picker with drag/drop, replace/remove, size feedback, and no localStorage or IndexedDB persistence.
 - Optional, disabled-by-default yt-dlp cookie reading from a supported browser profile on the same machine as the app.
 - Anonymous, per-client preview and download rate limits with bounded in-memory counters.
-- Native browser attachment downloads, so large files are not buffered in page JavaScript.
+- End-to-end download feedback: the page shows preparation, received bytes, and a completion handoff, while structured errors provide retry or correction guidance.
+- Attachment responses are read by the page to report byte progress, then handed to the browser's Downloads flow. The page temporarily buffers the complete file in browser memory (up to the configured cap, 250 MiB in the public Docker deployment), so large files can use substantial memory.
 - Playlist rejection, configurable duration and file-size caps, bounded concurrent work, request timeouts, and temporary-file cleanup.
 - No built-in login, analytics, admin PIN, or third-party database integration.
 
 ## Run locally
 
-Python 3.10+ and FFmpeg are required. Install the system FFmpeg package, then:
+Python 3.10+ and FFmpeg are required to run the app. Node.js 18+ is required only for the browser-side test harness. Install the system FFmpeg package, then:
 
 ```sh
 python -m venv .venv
@@ -27,11 +28,16 @@ pip install -r requirements.txt
 python app.py
 ```
 
-Open `http://localhost:5000`. The test suite uses mocked extractor responses and does not download real media:
+Open `http://localhost:5000`. The Python suite uses mocked extractor responses and does not download real media; the frontend suite runs the page script against a small fake DOM and mocked Fetch/streams:
 
 ```sh
 python -m unittest -v
+node --test test_frontend.cjs
 ```
+
+The download status reports progress only after the server begins returning the file; source extraction and conversion are shown as a preparation state because yt-dlp does not expose a reliable end-user progress stream through this interface. “Transfer finished” means the complete response has reached the page and was handed to the browser. The app cannot confirm that the browser wrote it to disk; check the browser's Downloads list. A browser-side buffer is needed here to provide byte-level progress for the existing POST-with-options flow. Consider available device memory before downloading a file near the configured cap.
+
+AJAX download requests that send `Accept: application/json` receive stable error codes such as `invalid_request`, `busy`, `rate_limited`, `request_too_large`, and `source_error`; busy/rate-limit responses include `Retry-After`. Regular form submissions continue to receive the standalone HTML error page.
 
 To expose the optional cookie-file field for a local test, start with `ENABLE_COOKIE_AUTH=1 python app.py`. Upload a Netscape-format cookie export for the target site and check the consent box. Remote uploads require HTTPS; the default local server accepts cookie uploads only from localhost.
 

@@ -15,6 +15,7 @@
       <h1 class="error-title">We couldn't prepare this file.</h1>
       <div class="message message-error">{{ error }}</div>
       <p class="hint error-hint">Check that the media is public and the link points to a single item, then try again.</p>
+      {% if code %}<p class="hint">Reference code: <code>{{ code }}</code></p>{% endif %}
       <p class="error-back"><a class="button button-primary" href="/">Back to downloader</a></p>
     </section>
   </main>

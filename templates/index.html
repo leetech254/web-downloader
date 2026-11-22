@@ -137,9 +137,15 @@
           <button id="download-button" class="button button-download" type="submit" disabled>Download media</button>
           <p class="legal">Only download content you have permission to save. Respect copyright and each site's terms.</p>
         </div>
+        <p class="hint transfer-note">Transfer progress is shown before the file is handed to your browser. To provide that progress, this page temporarily buffers the download in browser memory (up to this server's configured {{ (max_download_bytes / 1048576)|round(0)|int }} MiB cap); large files can use substantial memory.</p>
         <div id="loading" class="loading" hidden role="status" aria-live="polite">
           <span class="spinner" aria-hidden="true"></span>
-          <span>Your file is being prepared. The browser will start the download when it's ready.</span>
+          <div class="loading-copy">
+            <strong id="loading-text">Preparing your file…</strong>
+            <p id="download-progress-label" class="hint" hidden></p>
+            <progress id="download-progress" max="100" value="0" aria-label="Download transfer progress" hidden></progress>
+            <a id="save-download" class="button button-secondary save-download" href="#" download hidden>Save file now</a>
+          </div>
         </div>
       </form>
     </section>

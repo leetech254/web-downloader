@@ -10,6 +10,10 @@
   const preview = document.getElementById('preview');
   const message = document.getElementById('message');
   const loading = document.getElementById('loading');
+  const loadingText = document.getElementById('loading-text');
+  const downloadProgress = document.getElementById('download-progress');
+  const downloadProgressLabel = document.getElementById('download-progress-label');
+  const saveDownload = document.getElementById('save-download');
   const image = document.getElementById('preview-image');
   const cookieInput = document.getElementById('cookies');
   const cookieAck = document.getElementById('cookie-ack');
@@ -28,6 +32,7 @@
   const browserCookieAck = document.getElementById('browser-cookie-ack');
   const maxCookieBytes = Number(cookieManager?.dataset.maxBytes || 0);
   let previewKey = '';
+  let downloadObjectUrl = '';
 
   function selectedFormat() {
     return form.querySelector('input[name="format"]:checked').value;
@@ -123,6 +128,17 @@
     image.hidden = true;
     message.hidden = true;
     message.textContent = '';
+    message.className = 'message';
+    message.setAttribute('role', 'status');
+    loading.hidden = true;
+    downloadProgress.hidden = true;
+    downloadProgress.value = 0;
+    downloadProgressLabel.hidden = true;
+    downloadProgressLabel.textContent = '';
+    saveDownload.hidden = true;
+    saveDownload.removeAttribute('href');
+    if (downloadObjectUrl) URL.revokeObjectURL(downloadObjectUrl);
+    downloadObjectUrl = '';
   }
 
   function formatDuration(seconds) {
@@ -137,7 +153,102 @@
   function showError(text) {
     message.textContent = text || 'Something went wrong. Please try again.';
     message.className = 'message message-error';
+    message.setAttribute('role', 'alert');
     message.hidden = false;
+  }
+
+  function showSuccess(text) {
+    message.textContent = text;
+    message.className = 'message message-success';
+    message.setAttribute('role', 'status');
+    message.hidden = false;
+  }
+
+  function friendlyNetworkError(error) {
+    if (error?.name === 'AbortError') return 'The request was cancelled before the file finished downloading.';
+    if (error?.name === 'NotAllowedError' || error?.name === 'SecurityError') return 'Your browser blocked the automatic save. Allow downloads for this site or try another browser.';
+    if (error instanceof TypeError) return 'The connection was interrupted. Check your internet connection and try again.';
+    return error?.message || 'The request did not finish. Please try again.';
+  }
+
+  function filenameFromResponse(response) {
+    const header = response.headers.get('Content-Disposition') || '';
+    const encoded = header.match(/filename\*=UTF-8''([^;]+)/i);
+    const quoted = header.match(/filename="((?:\\.|[^"])*)"/i);
+    const plain = header.match(/filename=([^;]+)/i);
+    let name = quoted ? quoted[1].replace(/\\(.)/g, '$1') : plain?.[1]?.trim();
+    if (encoded) {
+      try { name = decodeURIComponent(encoded[1]); } catch (_) { name = encoded[1]; }
+    }
+    if (name) name = name.replace(/[\\/:*?"<>|\u0000-\u001f]/g, '_').trim();
+    return name || 'media-download';
+  }
+
+  async function readDownload(response) {
+    const total = Number(response.headers.get('Content-Length')) || 0;
+    const reader = response.body?.getReader();
+    if (!reader) {
+      downloadProgress.hidden = false;
+      downloadProgress.removeAttribute('value');
+      downloadProgressLabel.hidden = false;
+      downloadProgressLabel.textContent = 'Receiving the file…';
+      const blob = await response.blob();
+      downloadProgress.value = 100;
+      downloadProgressLabel.textContent = `${readableBytes(blob.size)} received`;
+      return blob;
+    }
+    const chunks = [];
+    let received = 0;
+    downloadProgress.hidden = false;
+    downloadProgressLabel.hidden = false;
+    if (!total) downloadProgress.removeAttribute('value');
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      chunks.push(value);
+      received += value.byteLength;
+      if (total) {
+        downloadProgress.value = Math.min(100, (received / total) * 100);
+        downloadProgressLabel.textContent = `${readableBytes(received)} of ${readableBytes(total)}`;
+      } else {
+        downloadProgressLabel.textContent = `${readableBytes(received)} received`;
+      }
+    }
+    if (total) downloadProgress.value = 100;
+    return new Blob(chunks, { type: response.headers.get('Content-Type') || 'application/octet-stream' });
+  }
+
+  async function responseError(response) {
+    let payload = {};
+    try {
+      if ((response.headers.get('Content-Type') || '').includes('application/json')) payload = await response.json();
+    } catch (_) { /* Use the status-based fallback below. */ }
+    const retryAfter = Number(response.headers.get('Retry-After') || payload.retry_after || 0);
+    if (payload.error) return retryAfter && response.status === 429 && !/try again in/i.test(payload.error)
+      ? `${payload.error} (retry in about ${retryAfter} seconds)`
+      : payload.error;
+    if (response.status === 413) return 'This request is too large. Remove the cookie file or try again without an upload.';
+    if (response.status === 429) return `The downloader is busy or you have reached a request limit${retryAfter ? `. Try again in about ${retryAfter} seconds` : ''}.`;
+    if (response.status >= 500) return 'The source or downloader could not complete the request. Try again later or use another public link.';
+    return 'The request was not accepted. Check the link and selected options, then try again.';
+  }
+
+  const lockableControls = [...form.querySelectorAll('input:not([type="hidden"]), select')];
+  const originalDisabled = new Map();
+  function setFormBusy(busy) {
+    if (busy) {
+      lockableControls.forEach((control) => {
+        originalDisabled.set(control, control.disabled);
+        control.disabled = true;
+      });
+    } else {
+      lockableControls.forEach((control) => {
+        control.disabled = originalDisabled.get(control) || false;
+      });
+      originalDisabled.clear();
+    }
+    previewButton.disabled = busy;
+    downloadButton.disabled = busy || !previewKey || currentKey() !== previewKey;
   }
 
   form.querySelectorAll('input[name="format"]').forEach((radio) => radio.addEventListener('change', refreshOptions));
@@ -229,14 +340,14 @@
       previewKey = currentKey();
       downloadButton.disabled = false;
     } catch (error) {
-      showError(error.message);
+      showError(friendlyNetworkError(error));
     } finally {
       previewButton.disabled = false;
       previewButton.textContent = 'Preview link';
     }
   });
 
-  form.addEventListener('submit', (event) => {
+  form.addEventListener('submit', async (event) => {
     if (!hasCookieConsent() || !hasBrowserCookieConsent()) {
       event.preventDefault();
       return;
@@ -247,9 +358,66 @@
       downloadButton.disabled = true;
       return;
     }
-    downloadButton.disabled = true;
+    event.preventDefault();
+    const data = new FormData(form);
+    data.set('quality', selectedQuality());
+    setFormBusy(true);
     downloadButton.textContent = 'Preparing…';
+    loadingText.textContent = 'Contacting the source and preparing your file…';
+    downloadProgress.hidden = true;
+    downloadProgress.value = 0;
+    downloadProgressLabel.hidden = true;
+    downloadProgressLabel.textContent = '';
+    saveDownload.hidden = true;
+    saveDownload.removeAttribute('href');
+    if (downloadObjectUrl) URL.revokeObjectURL(downloadObjectUrl);
+    downloadObjectUrl = '';
+    loading.querySelector('.spinner').hidden = false;
     loading.hidden = false;
+    message.hidden = true;
+    let completedBlob = null;
+    try {
+      const response = await fetch('/download', {
+        method: 'POST',
+        body: data,
+        headers: { Accept: 'application/json, application/octet-stream' },
+      });
+      if (!response.ok) throw new Error(await responseError(response));
+      loadingText.textContent = 'Receiving the file…';
+      completedBlob = await readDownload(response);
+      if (!completedBlob.size) throw new Error('The server returned an empty file. Please try again.');
+      const filename = filenameFromResponse(response);
+      downloadObjectUrl = URL.createObjectURL(completedBlob);
+      saveDownload.href = downloadObjectUrl;
+      saveDownload.download = filename;
+      saveDownload.textContent = `Save ${filename} now`;
+      saveDownload.hidden = false;
+      saveDownload.click();
+      loading.querySelector('.spinner').hidden = true;
+      loadingText.textContent = 'Transfer finished';
+      downloadProgress.hidden = false;
+      downloadProgress.value = 100;
+      downloadProgressLabel.hidden = false;
+      downloadProgressLabel.textContent = `${readableBytes(completedBlob.size)} received · save link ready`;
+      showSuccess(`File received: ${filename}. If the automatic save did not start, use “Save ${filename} now” below. Check your browser’s Downloads list; the app cannot confirm a disk save.`);
+    } catch (error) {
+      if (completedBlob && downloadObjectUrl) {
+        loading.querySelector('.spinner').hidden = true;
+        loadingText.textContent = 'File received — ready for you to save';
+        downloadProgress.hidden = false;
+        downloadProgress.value = 100;
+        downloadProgressLabel.hidden = false;
+        downloadProgressLabel.textContent = `${readableBytes(completedBlob.size)} received`;
+        saveDownload.hidden = false;
+        showSuccess(`Your file is ready. Use “Save ${saveDownload.download} now” below to start the browser download.`);
+      } else {
+        loading.hidden = true;
+        showError(friendlyNetworkError(error));
+      }
+    } finally {
+      setFormBusy(false);
+      downloadButton.textContent = 'Download media';
+    }
   });
 
   fetch('/api/platforms')

@@ -9,3 +9,60 @@
 .cookie-panel input.sr-only-file{position:absolute!important;width:1px!important;height:1px!important;padding:0!important;margin:-1px!important;overflow:hidden!important;clip:rect(0,0,0,0)!important;white-space:nowrap!important;border:0!important}.cookie-dropzone{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:10px;align-items:stretch;margin:13px 0 8px}.cookie-drop-target{display:flex;min-height:112px;flex-direction:column;align-items:center;justify-content:center;gap:4px;padding:14px;border:1px dashed #78634c;border-radius:10px;background:#17140f;color:#f0e5d6;text-align:center;cursor:pointer}.cookie-drop-target:hover,.cookie-drop-target:focus-visible{border-color:#d1a76f;background:#241d14;outline:2px solid #d1a76f55;outline-offset:2px}.cookie-dropzone.is-dragging .cookie-drop-target{border-color:#e3bc85;background:#302519}.cookie-dropzone.has-file .cookie-drop-target{border-color:#63856e}.drop-icon{color:#e1bb86;font-size:25px;line-height:1}.drop-caption{color:#b4a28b;font-size:11px}.button-secondary{border:1px solid #67553f;background:#30271b;color:#f4e4ce}.cookie-file-state{display:flex;align-items:center;gap:12px;margin:11px 0;padding:11px;border:1px solid #596c60;border-radius:10px;background:#142019}.file-type{display:grid;width:39px;height:39px;flex:none;place-items:center;border-radius:8px;background:#264331;color:#b5e0c1;font-size:10px;font-weight:800}.file-copy{display:flex;min-width:0;flex:1;flex-direction:column;gap:3px}.file-copy strong{overflow-wrap:anywhere;color:#f0f3ef;font-size:12px}.file-copy .hint{margin:0}.remove-file{min-height:36px;padding:0 12px;border-color:#70494a;background:#321f20;color:#ffd5d5;font-size:12px}.cookie-local-hint{margin:6px 0 10px;color:#b6a68f;font-size:11px;line-height:1.5}.cookie-message{margin:7px 0;padding:9px 11px;border:1px solid #70494a;border-radius:8px;background:#321f20;color:#ffd5d5;font-size:12px;line-height:1.4}@media(max-width:520px){.cookie-dropzone{grid-template-columns:1fr}.cookie-drop-target{min-height:100px}.cookie-file-state{align-items:flex-start;flex-wrap:wrap}.file-copy{flex-basis:calc(100% - 60px)}.remove-file{margin-left:51px}}
 
 .browser-cookie-panel input[type=text]{width:100%;height:49px;margin:0 0 13px;padding:0 14px;border:1px solid #534533;border-radius:10px;background:#100f0d;color:var(--text);font:inherit}.browser-cookie-panel input[type=text]:focus{border-color:#d1a76f;outline:2px solid #d1a76f33}.browser-profile-label{margin-top:12px}.hint-inline{color:var(--muted);font-size:11px;font-weight:400}.browser-cookie-ack{margin-top:14px}
+
+/* End-to-end download feedback */
+.message-success {
+  border-color: rgba(91, 211, 163, 0.35);
+  background: rgba(43, 146, 108, 0.13);
+  color: #b9f3dc;
+}
+.loading {
+  align-items: flex-start;
+  gap: 0.85rem;
+}
+.loading-copy {
+  display: grid;
+  gap: 0.55rem;
+  min-width: 0;
+  width: 100%;
+}
+.loading-copy strong {
+  color: var(--text, #f3f5f7);
+}
+.loading-copy .hint {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+#download-progress {
+  display: block;
+  width: 100%;
+  height: 0.65rem;
+  overflow: hidden;
+  border: 0;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.09);
+  accent-color: #65d9ac;
+}
+#download-progress::-webkit-progress-bar {
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.09);
+}
+#download-progress::-webkit-progress-value {
+  border-radius: 999px;
+  background: #65d9ac;
+}
+.transfer-note {
+  margin: 0.75rem 0 0;
+  font-size: 0.82rem;
+}
+.save-download {
+  display: inline-flex;
+  width: fit-content;
+  max-width: 100%;
+  align-items: center;
+  justify-content: center;
+  margin-top: 0.15rem;
+  overflow-wrap: anywhere;
+  text-align: center;
+  text-decoration: none;
+}

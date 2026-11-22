@@ -20,6 +20,7 @@ import yt_dlp
 from yt_dlp.extractor import gen_extractor_classes
 from flask import Flask, jsonify, render_template, request, send_file, send_from_directory, session
 from werkzeug.middleware.proxy_fix import ProxyFix
+from werkzeug.exceptions import RequestEntityTooLarge
 from werkzeug.wsgi import ClosingIterator
 
 app = Flask(__name__)
@@ -294,15 +295,26 @@ def _user_error(error: Exception) -> str:
     """Map extractor failures to useful messages without leaking internals."""
     text = str(error).lower()
     if "unsupported url" in text or "not a valid url" in text:
-        return "This link is not supported by the extractor. Try a direct public post or video link."
+        return "We couldn't recognize this link. Check that it points to one public post or media item, then try again."
     if any(term in text for term in ("private video", "login", "authentication", "age-restricted", "age restricted", "confirm your age", "sign in to confirm")):
-        return "This media requires sign-in or could not be authenticated. Check that your optional cookie file or authorized local browser profile is valid and current."
+        if COOKIE_AUTH_ENABLED:
+            return "This media requires sign-in or age verification. Only use your own authorized account cookies on a server you trust."
+        return "This media appears to require sign-in or age verification. This public service cannot use account cookies; try a public link instead."
+    if "http error 429" in text or "too many requests" in text or "rate limit" in text:
+        return "The source site is temporarily limiting requests. Wait a while, then try again."
+    if "http error 403" in text or "403 forbidden" in text:
+        return "The source site refused this request. The post may be restricted, or the site may be blocking automated access."
     if "geo restricted" in text or "not available in your country" in text:
         return "This media is not available from this server's location."
     if "ffmpeg" in text or "postprocessing" in text:
         return "Media conversion failed. Please try another format or contact the site administrator."
     if "file is larger than" in text or "max_filesize" in text:
-        return "This file exceeds the server's configured download-size limit."
+        limit_mib = max(1, ceil(MAX_DOWNLOAD_BYTES / (1024 * 1024)))
+        return f"This file is larger than this server's configured limit of {limit_mib} MiB. Try a lower video quality or a shorter item."
+    if "timed out" in text or "timeout" in text or any(term in text for term in ("connection reset", "connection refused", "temporary failure in name resolution", "name or service not known", "network is unreachable")):
+        return "The source site could not be reached in time. Check the link and try again later."
+    if "http error 404" in text or "video unavailable" in text or "not available" in text:
+        return "The media could not be found. It may have been removed, made private, or the link may be incomplete."
     return "Could not process this media. The link may be unavailable, unsupported, or temporarily blocked."
 
 
@@ -376,17 +388,22 @@ def _enforce_client_rate_limit(action: str) -> int | None:
     return None
 
 
-def _download_error(message: str, status: int):
-    if "text/html" in request.headers.get("Accept", ""):
-        return render_template("error.html", error=message), status
-    return jsonify(error=message), status
-
-
-def _rate_limit_response(message: str, retry_after: int, html: bool = False):
-    result = _download_error(message, 429) if html else (jsonify(error=message), 429)
-    response = app.make_response(result)
-    response.headers["Retry-After"] = str(max(1, retry_after))
+def _download_error(message: str, status: int, *, code: str = "request_failed", retry_after: int | None = None):
+    accept = request.headers.get("Accept", "")
+    if "application/json" in accept or "text/html" not in accept:
+        payload = {"error": message, "code": code}
+        if retry_after is not None:
+            payload["retry_after"] = max(1, retry_after)
+        response = app.make_response((jsonify(payload), status))
+    else:
+        response = app.make_response((render_template("error.html", error=message, code=code), status))
+    if retry_after is not None:
+        response.headers["Retry-After"] = str(max(1, retry_after))
     return response
+
+
+def _rate_limit_response(message: str, retry_after: int):
+    return _download_error(message, 429, code="rate_limited", retry_after=retry_after)
 
 
 def _extract_info(url: str, options: dict) -> dict:
@@ -413,6 +430,15 @@ def add_security_headers(response):
     return response
 
 
+@app.errorhandler(413)
+def request_too_large(_error):
+    return _download_error(
+        "This request is too large. Remove the cookie file or choose a smaller upload.",
+        413,
+        code="request_too_large",
+    )
+
+
 @app.get("/")
 def index():
     csrf_token = session.setdefault("csrf_token", secrets.token_urlsafe(32))
@@ -420,6 +446,7 @@ def index():
         "index.html",
         cookie_auth_enabled=COOKIE_AUTH_ENABLED,
         max_cookie_bytes=MAX_COOKIE_BYTES,
+        max_download_bytes=MAX_DOWNLOAD_BYTES,
         browser_cookies_enabled=ENABLE_BROWSER_COOKIES,
         browser_cookie_sources=BROWSER_COOKIE_SOURCES,
         csrf_token=csrf_token,
@@ -453,7 +480,12 @@ def api_info():
             f"Preview limit reached. Try again in {retry_after} seconds.", retry_after
         )
     if not _acquire_slot():
-        return jsonify(error="The downloader is busy. Please try again shortly."), 429
+        return _download_error(
+            "The downloader is busy. Please wait a few seconds and try again.",
+            429,
+            code="busy",
+            retry_after=15,
+        )
     temp_dir = None
     try:
         url = validate_url(request.form.get("url", ""))
@@ -476,11 +508,17 @@ def api_info():
             thumbnail=thumb,
             extractor=_safe_title(info.get("extractor_key") or info.get("extractor") or "Media site"),
         )
+    except RequestEntityTooLarge:
+        return _download_error(
+            "This request is too large. Remove the cookie file or choose a smaller upload.",
+            413,
+            code="request_too_large",
+        )
     except InputError as exc:
-        return jsonify(error=str(exc)), 400
+        return jsonify(error=str(exc), code="invalid_request"), 400
     except Exception as exc:  # The details stay in server logs, not in the response.
         app.logger.warning("Metadata extraction failed (%s)", type(exc).__name__)
-        return jsonify(error=_user_error(exc)), 502
+        return jsonify(error=_user_error(exc), code="source_error"), 502
     finally:
         if temp_dir:
             shutil.rmtree(temp_dir, ignore_errors=True)
@@ -492,10 +530,15 @@ def download():
     retry_after = _enforce_client_rate_limit("download")
     if retry_after is not None:
         return _rate_limit_response(
-            f"Download limit reached. Try again in {retry_after} seconds.", retry_after, html=True
+            f"Download limit reached. Try again in {retry_after} seconds.", retry_after
         )
     if not _acquire_slot():
-        return _download_error("The downloader is busy. Please try again shortly.", 429)
+        return _download_error(
+            "The downloader is busy. Please wait a few seconds and try again.",
+            429,
+            code="busy",
+            retry_after=15,
+        )
 
     temp_dir = None
     try:
@@ -551,11 +594,17 @@ def download():
         )
         temp_dir = None  # Response callback owns cleanup now.
         return response
+    except RequestEntityTooLarge:
+        return _download_error(
+            "This request is too large. Remove the cookie file or choose a smaller upload.",
+            413,
+            code="request_too_large",
+        )
     except InputError as exc:
-        return _download_error(str(exc), 400)
+        return _download_error(str(exc), 400, code="invalid_request")
     except Exception as exc:
         app.logger.warning("Download failed (%s)", type(exc).__name__)
-        return _download_error(_user_error(exc), 502)
+        return _download_error(_user_error(exc), 502, code="source_error")
     finally:
         if temp_dir:
             shutil.rmtree(temp_dir, ignore_errors=True)

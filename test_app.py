@@ -45,6 +45,20 @@ class FakeYoutubeDL:
         return info
 
 
+class FailingYoutubeDL(FakeYoutubeDL):
+    failure_message = "HTTP Error 429: Too Many Requests"
+
+    def extract_info(self, url, download=False):
+        raise RuntimeError(self.failure_message)
+
+
+class LongYoutubeDL(FakeYoutubeDL):
+    def extract_info(self, url, download=False):
+        info = super().extract_info(url, download)
+        info["duration"] = 123
+        return info
+
+
 class DownloaderTests(unittest.TestCase):
     def setUp(self):
         downloader.app.config.update(TESTING=True)
@@ -88,6 +102,15 @@ class DownloaderTests(unittest.TestCase):
         self.assertNotIn("X-Frame-Options", response.headers)
         self.assertNotIn("frame-ancestors", response.headers["Content-Security-Policy"])
 
+    def test_homepage_exposes_transfer_progress_and_memory_limit(self):
+        response = self.client.get("/")
+        self.assertEqual(response.status_code, 200)
+        self.assertIn(b'id="download-progress"', response.data)
+        self.assertIn(b'id="download-progress-label"', response.data)
+        self.assertIn(b"temporarily buffers the download in browser memory", response.data)
+        configured_mib = int(round(downloader.MAX_DOWNLOAD_BYTES / (1024 * 1024)))
+        self.assertIn(f"configured {configured_mib} MiB cap".encode(), response.data)
+
     def test_manus_route_manifest_is_served_at_root(self):
         response = self.client.get("/manus-routes.json")
         self.assertEqual(response.status_code, 200)
@@ -124,6 +147,7 @@ class DownloaderTests(unittest.TestCase):
         self.assertEqual(first.status_code, 200)
         self.assertEqual(blocked.status_code, 429)
         self.assertGreaterEqual(int(blocked.headers["Retry-After"]), 1)
+        self.assertEqual(blocked.json["code"], "rate_limited")
         self.assertIn("Preview limit reached", blocked.json["error"])
         self.assertEqual(other_client.status_code, 200)
 
@@ -158,6 +182,75 @@ class DownloaderTests(unittest.TestCase):
             "url": "https://localhost/watch", "format": "exe", "quality": "best"
         })
         self.assertEqual(response.status_code, 400)
+        self.assertEqual(response.json["code"], "invalid_request")
+
+    def test_oversized_request_returns_structured_413(self):
+        with patch.dict(downloader.app.config, {"MAX_CONTENT_LENGTH": 128}):
+            response = self.client.post("/api/info", data={"url": "https://example.com", "extra": "x" * 256},
+                                        headers={"Accept": "application/json"})
+        self.assertEqual(response.status_code, 413)
+        self.assertEqual(response.json["code"], "request_too_large")
+        self.assertIn("too large", response.json["error"])
+
+    def test_busy_download_returns_machine_code_and_retry_after(self):
+        with patch.object(downloader, "_acquire_slot", return_value=False):
+            response = self.client.post("/download", data={"url": "https://example.com/watch"},
+                                        headers={"Accept": "application/json"})
+        self.assertEqual(response.status_code, 429)
+        self.assertEqual(response.json["code"], "busy")
+        self.assertEqual(response.headers["Retry-After"], "15")
+
+    @patch("app.socket.getaddrinfo")
+    @patch("app.yt_dlp.YoutubeDL", FailingYoutubeDL)
+    def test_source_rate_limit_is_actionable_and_structured(self, resolver):
+        resolver.side_effect = self.public_dns
+        response = self.client.post("/download", data={
+            "url": "https://example.com/watch", "format": "mp4", "quality": "720"
+        }, headers={"Accept": "application/json"})
+        self.assertEqual(response.status_code, 502)
+        self.assertEqual(response.json["code"], "source_error")
+        self.assertIn("temporarily limiting", response.json["error"])
+        self.assertNotIn("HTTP Error 429", response.json["error"])
+
+    @patch("app.socket.getaddrinfo")
+    @patch("app.yt_dlp.YoutubeDL", FailingYoutubeDL)
+    def test_authentication_failure_on_public_service_does_not_suggest_cookie_upload(self, resolver):
+        resolver.side_effect = self.public_dns
+        FailingYoutubeDL.failure_message = "Sign in to confirm your age"
+        try:
+            with patch.object(downloader, "COOKIE_AUTH_ENABLED", False):
+                response = self.client.post("/api/info", data={
+                    "url": "https://example.com/watch", "format": "mp4", "quality": "720"
+                })
+        finally:
+            FailingYoutubeDL.failure_message = "HTTP Error 429: Too Many Requests"
+        self.assertEqual(response.status_code, 502)
+        self.assertIn("public service cannot use account cookies", response.json["error"])
+        self.assertNotIn("upload a cookie", response.json["error"].lower())
+
+    @patch("app.socket.getaddrinfo")
+    @patch("app.yt_dlp.YoutubeDL", LongYoutubeDL)
+    def test_duration_limit_returns_clear_invalid_request(self, resolver):
+        resolver.side_effect = self.public_dns
+        with patch.object(downloader, "MAX_DURATION_SECONDS", 60):
+            response = self.client.post("/api/info", data={
+                "url": "https://example.com/watch", "format": "mp4", "quality": "720"
+            })
+        self.assertEqual(response.status_code, 400)
+        self.assertEqual(response.json["code"], "invalid_request")
+        self.assertIn("longer than", response.json["error"])
+
+    @patch("app.socket.getaddrinfo")
+    @patch("app.yt_dlp.YoutubeDL", FakeYoutubeDL)
+    def test_oversized_completed_media_is_rejected_before_transfer(self, resolver):
+        resolver.side_effect = self.public_dns
+        with patch.object(downloader, "MAX_DOWNLOAD_BYTES", 5):
+            response = self.client.post("/download", data={
+                "url": "https://example.com/watch", "format": "mp4", "quality": "720"
+            }, headers={"Accept": "application/json"})
+        self.assertEqual(response.status_code, 400)
+        self.assertEqual(response.json["code"], "invalid_request")
+        self.assertIn("configured download-size limit", response.json["error"])
 
     def test_quality_presets_are_bounded(self):
         options = downloader._options("mp4", "720", "%(id)s.%(ext)s")
@@ -337,6 +430,8 @@ class DownloaderTests(unittest.TestCase):
         }, headers={"Accept": "application/octet-stream"})
         self.assertEqual(response.status_code, 200)
         self.assertIn("attachment;", response.headers["Content-Disposition"])
+        self.assertEqual(int(response.headers["Content-Length"]), len(b"sample media bytes"))
+        self.assertEqual(response.mimetype, "video/mp4")
         self.assertTrue(response.headers["Content-Disposition"].endswith("safe title.mp4\"") or "safe%20title.mp4" in response.headers["Content-Disposition"])
         self.assertEqual(response.data, b"sample media bytes")
         response.close()
@@ -352,6 +447,7 @@ class DownloaderTests(unittest.TestCase):
         }, headers={"Accept": "text/html"})
         self.assertEqual(response.status_code, 400)
         self.assertIn(b"Download not completed", response.data)
+        self.assertIn(b"invalid_request", response.data)
 
 
 if __name__ == "__main__":
