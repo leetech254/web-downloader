@@ -11,6 +11,7 @@ A small Flask interface around [yt-dlp](https://github.com/yt-dlp/yt-dlp) for pr
 - Optional, disabled-by-default Netscape cookie-file authentication for media you can access with your own account.
 - A browser-only cookie-file picker with drag/drop, replace/remove, size feedback, and no localStorage or IndexedDB persistence.
 - Optional, disabled-by-default yt-dlp cookie reading from a supported browser profile on the same machine as the app.
+- Anonymous, per-client preview and download rate limits with bounded in-memory counters.
 - Native browser attachment downloads, so large files are not buffered in page JavaScript.
 - Playlist rejection, configurable duration and file-size caps, bounded concurrent work, request timeouts, and temporary-file cleanup.
 - No built-in login, analytics, admin PIN, or third-party database integration.
@@ -47,20 +48,27 @@ All settings are optional environment variables:
 | `MAX_DOWNLOAD_BYTES` | `1073741824` | Maximum size accepted (1 GiB by default). |
 | `MAX_DURATION_SECONDS` | `14400` | Maximum media duration (4 hours by default). |
 | `MAX_CONCURRENT_JOBS` | `2` | Concurrent extractor jobs per application process. |
+| `PREVIEW_LIMIT_PER_MINUTE` / `PREVIEW_LIMIT_PER_HOUR` | `10` / `30` | Per-client metadata preview caps. |
+| `DOWNLOAD_LIMIT_PER_HOUR` / `DOWNLOAD_LIMIT_PER_DAY` | `3` / `10` | Per-client download caps. |
+| `MAX_RATE_LIMIT_BUCKETS` | `10000` | Maximum in-memory per-client window buckets; when full, new identities are temporarily rejected rather than growing memory without bound. |
 | `ENABLE_COOKIE_AUTH` | `0` | Set to `1` to permit per-request cookie uploads. Keep disabled on public/shared instances. |
 | `ENABLE_BROWSER_COOKIES` | `0` | Set to `1` to show optional local browser-profile access. Requests are still restricted to localhost, same-origin CSRF-protected requests and are rejected behind trusted proxy headers. |
 | `MAX_COOKIE_BYTES` | `2097152` | Maximum uploaded cookie file size (2 MiB by default). |
-| `TRUST_PROXY_HEADERS` | `0` | Set to `1` only behind one trusted proxy that overwrites forwarded headers and blocks direct app access. |
+| `TRUST_PROXY_HEADERS` | `0` in direct Python runs | Set to `1` only behind one trusted proxy that overwrites forwarded headers and blocks direct app access. The public Docker image sets this for the Manus ingress and trusts one proxy hop. |
 | `FLASK_SECRET_KEY` | Random per process | Set a long, random, stable value when running multiple workers so signed Flask sessions remain valid across workers. Never commit it. |
 
 ## Docker
 
 ```sh
 docker build -t media-downloader .
-docker run --rm -p 5000:5000 media-downloader
+docker run --rm -p 5000:3000 media-downloader
 ```
 
-For an internet-facing deployment, terminate TLS at a trusted reverse proxy, set an appropriate request-rate limit, monitor disk usage, and restrict outbound network access. The URL validator rejects local/private hosts and checks DNS results, but generic media extractors follow redirects and may perform additional requests; a network-level egress policy is still necessary for a public service. The built-in concurrency limit is per process, not distributed across replicas.
+The Docker image uses conservative public-service defaults: one extraction at a time, 250 MiB maximum output, one-hour maximum media duration, and cookie features disabled. Its in-memory per-client limits are 10 previews/minute and 30/hour, plus 3 downloads/hour and 10/day. The Flask development-server defaults shown in the configuration table are less restrictive; use the Docker image for the public deployment.
+
+Rate-limit counters are bounded and process-local: they reset when the instance restarts and are not shared across replicas. This is a temporary, best-effort abuse control, not a guarantee against distributed abuse. No login or Redis is required. The container trusts one forwarded proxy hop for client address/protocol/host; do not copy that setting to a direct deployment unless its proxy overwrites those headers and blocks direct access. Access logs are disabled to avoid routinely recording submitted media URLs and visitor addresses.
+
+For an internet-facing deployment, terminate TLS at a trusted ingress, monitor disk usage, and restrict outbound network access. The URL validator rejects local/private hosts and checks DNS results, but generic media extractors follow redirects and may perform additional requests; a network-level egress policy is still necessary for a public service. The built-in concurrency limit is per process, not distributed across replicas.
 
 ## Security and privacy
 

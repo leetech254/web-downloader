@@ -2,7 +2,18 @@ FROM python:3.12-slim
 
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
-    PORT=5000
+    PORT=3000 \
+    TRUST_PROXY_HEADERS=1 \
+    ENABLE_COOKIE_AUTH=0 \
+    ENABLE_BROWSER_COOKIES=0 \
+    MAX_DOWNLOAD_BYTES=262144000 \
+    MAX_DURATION_SECONDS=3600 \
+    MAX_CONCURRENT_JOBS=1 \
+    PREVIEW_LIMIT_PER_MINUTE=10 \
+    PREVIEW_LIMIT_PER_HOUR=30 \
+    DOWNLOAD_LIMIT_PER_HOUR=3 \
+    DOWNLOAD_LIMIT_PER_DAY=10 \
+    MAX_RATE_LIMIT_BUCKETS=10000
 
 RUN apt-get update \
     && apt-get install -y --no-install-recommends ffmpeg ca-certificates \
@@ -16,8 +27,8 @@ RUN pip install --no-cache-dir -r requirements.txt
 COPY --chown=app:app . .
 USER app
 
-EXPOSE 5000
+EXPOSE 3000
 HEALTHCHECK --interval=30s --timeout=3s --start-period=10s --retries=3 \
-  CMD-SHELL python -c "import os; from urllib.request import urlopen; urlopen('http://127.0.0.1:%s/healthz' % os.getenv('PORT', '5000'), timeout=2)" || exit 1
+  CMD-SHELL python -c "import os; from urllib.request import urlopen; urlopen('http://127.0.0.1:%s/healthz' % os.getenv('PORT', '3000'), timeout=2)" || exit 1
 
-CMD ["sh", "-c", "gunicorn --bind 0.0.0.0:${PORT} --workers 1 --threads 4 --timeout 360 --access-logfile - --error-logfile - app:app"]
+CMD ["sh", "-c", "gunicorn --bind 0.0.0.0:${PORT} --workers 1 --threads 4 --timeout 360 --access-logfile /dev/null --error-logfile - app:app"]

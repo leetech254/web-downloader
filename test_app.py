@@ -52,6 +52,9 @@ class DownloaderTests(unittest.TestCase):
         FakeYoutubeDL.cookie_path = None
         FakeYoutubeDL.cookie_mode = None
         FakeYoutubeDL.browser_options = None
+        with downloader._RATE_LIMIT_LOCK:
+            downloader._RATE_LIMIT_BUCKETS.clear()
+            downloader._RATE_LIMIT_LAST_SWEEP = downloader.time.monotonic()
 
     def public_dns(self, *args, **kwargs):
         return [(None, None, None, None, ("93.184.216.34", 443))]
@@ -82,7 +85,14 @@ class DownloaderTests(unittest.TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.json["status"], "ok")
         self.assertEqual(response.headers["X-Content-Type-Options"], "nosniff")
-        self.assertIn("frame-ancestors 'none'", response.headers["Content-Security-Policy"])
+        self.assertNotIn("X-Frame-Options", response.headers)
+        self.assertNotIn("frame-ancestors", response.headers["Content-Security-Policy"])
+
+    def test_manus_route_manifest_is_served_at_root(self):
+        response = self.client.get("/manus-routes.json")
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json, {"routes": [{"path": "/", "title": "Media Downloader"}]})
+        response.close()
 
     @patch("app.socket.getaddrinfo")
     @patch("app.yt_dlp.YoutubeDL", FakeYoutubeDL)
@@ -95,6 +105,53 @@ class DownloaderTests(unittest.TestCase):
         self.assertEqual(response.json["title"], "Sample media safe title")
         self.assertEqual(response.json["duration"], 123)
         self.assertNotIn("webpage_url", response.json)
+
+    @patch("app.socket.getaddrinfo")
+    @patch("app.yt_dlp.YoutubeDL", FakeYoutubeDL)
+    def test_preview_rate_limit_is_per_client_and_returns_retry_after(self, resolver):
+        resolver.side_effect = self.public_dns
+        with patch.object(downloader, "PREVIEW_LIMIT_PER_MINUTE", 1), \
+                patch.object(downloader, "PREVIEW_LIMIT_PER_HOUR", 10):
+            first = self.client.post("/api/info", data={
+                "url": "https://example.com/watch", "format": "mp4", "quality": "720"
+            }, headers={"X-Forwarded-For": "203.0.113.100"})
+            blocked = self.client.post("/api/info", data={
+                "url": "https://example.com/watch", "format": "mp4", "quality": "720"
+            }, headers={"X-Forwarded-For": "198.51.100.200"})
+            other_client = self.client.post("/api/info", data={
+                "url": "https://example.com/watch", "format": "mp4", "quality": "720"
+            }, environ_overrides={"REMOTE_ADDR": "198.51.100.8"})
+        self.assertEqual(first.status_code, 200)
+        self.assertEqual(blocked.status_code, 429)
+        self.assertGreaterEqual(int(blocked.headers["Retry-After"]), 1)
+        self.assertIn("Preview limit reached", blocked.json["error"])
+        self.assertEqual(other_client.status_code, 200)
+
+    @patch("app.socket.getaddrinfo")
+    @patch("app.yt_dlp.YoutubeDL", FakeYoutubeDL)
+    def test_download_rate_limit_applies_before_another_extraction(self, resolver):
+        resolver.side_effect = self.public_dns
+        data = {"url": "https://example.com/watch", "format": "mp4", "quality": "720"}
+        with patch.object(downloader, "DOWNLOAD_LIMIT_PER_HOUR", 1), \
+                patch.object(downloader, "DOWNLOAD_LIMIT_PER_DAY", 10):
+            first = self.client.post("/download", data=data,
+                                     headers={"Accept": "application/octet-stream"})
+            first.close()
+            blocked = self.client.post("/download", data=data,
+                                       headers={"Accept": "text/html"})
+        self.assertEqual(first.status_code, 200)
+        self.assertEqual(blocked.status_code, 429)
+        self.assertGreaterEqual(int(blocked.headers["Retry-After"]), 1)
+        self.assertIn(b"Download limit reached", blocked.data)
+
+    def test_rate_limit_bucket_table_is_bounded_and_fails_closed(self):
+        with patch.object(downloader, "MAX_RATE_LIMIT_BUCKETS", 1):
+            response = self.client.post("/api/info", data={
+                "url": "https://example.com/watch", "format": "mp4", "quality": "720"
+            })
+        self.assertEqual(response.status_code, 429)
+        self.assertEqual(downloader._RATE_LIMIT_BUCKETS, {})
+        self.assertGreaterEqual(int(response.headers["Retry-After"]), 1)
 
     def test_invalid_format_is_rejected_before_extractor_runs(self):
         response = self.client.post("/api/info", data={

@@ -10,12 +10,15 @@ import shutil
 import socket
 import tempfile
 import threading
+import time
 import uuid
+from collections import deque
+from math import ceil
 from urllib.parse import urlsplit
 
 import yt_dlp
 from yt_dlp.extractor import gen_extractor_classes
-from flask import Flask, jsonify, render_template, request, send_file, session
+from flask import Flask, jsonify, render_template, request, send_file, send_from_directory, session
 from werkzeug.middleware.proxy_fix import ProxyFix
 from werkzeug.wsgi import ClosingIterator
 
@@ -27,6 +30,11 @@ SOCKET_TIMEOUT = max(5, int(os.getenv("SOCKET_TIMEOUT", "30")))
 MAX_DOWNLOAD_BYTES = max(1, int(os.getenv("MAX_DOWNLOAD_BYTES", str(1024**3))))
 MAX_DURATION_SECONDS = max(60, int(os.getenv("MAX_DURATION_SECONDS", str(4 * 60 * 60))))
 MAX_CONCURRENT_JOBS = max(1, int(os.getenv("MAX_CONCURRENT_JOBS", "2")))
+PREVIEW_LIMIT_PER_MINUTE = max(1, int(os.getenv("PREVIEW_LIMIT_PER_MINUTE", "10")))
+PREVIEW_LIMIT_PER_HOUR = max(1, int(os.getenv("PREVIEW_LIMIT_PER_HOUR", "30")))
+DOWNLOAD_LIMIT_PER_HOUR = max(1, int(os.getenv("DOWNLOAD_LIMIT_PER_HOUR", "3")))
+DOWNLOAD_LIMIT_PER_DAY = max(1, int(os.getenv("DOWNLOAD_LIMIT_PER_DAY", "10")))
+MAX_RATE_LIMIT_BUCKETS = max(100, int(os.getenv("MAX_RATE_LIMIT_BUCKETS", "10000")))
 MAX_COOKIE_BYTES = max(1024, int(os.getenv("MAX_COOKIE_BYTES", str(2 * 1024**2))))
 COOKIE_AUTH_ENABLED = os.getenv("ENABLE_COOKIE_AUTH", "0").strip().lower() in {"1", "true", "yes"}
 ENABLE_BROWSER_COOKIES = os.getenv("ENABLE_BROWSER_COOKIES", "0").strip().lower() in {"1", "true", "yes"}
@@ -35,6 +43,9 @@ app.config["MAX_CONTENT_LENGTH"] = MAX_COOKIE_BYTES + 64 * 1024
 if TRUST_PROXY_HEADERS:
     app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1)
 _JOB_SLOTS = threading.BoundedSemaphore(MAX_CONCURRENT_JOBS)
+_RATE_LIMIT_LOCK = threading.Lock()
+_RATE_LIMIT_BUCKETS: dict[tuple[str, str], tuple[deque[float], int]] = {}
+_RATE_LIMIT_LAST_SWEEP = time.monotonic()
 
 VIDEO_QUALITIES = {"best", "2160", "1440", "1080", "720", "480", "360"}
 AUDIO_QUALITIES = {"320", "256", "192", "128"}
@@ -301,10 +312,81 @@ def _acquire_slot():
     return True
 
 
+def _enforce_client_rate_limit(action: str) -> int | None:
+    """Return the retry delay when a client has exhausted a bounded sliding window."""
+    policies = {
+        "preview": (("preview_minute", PREVIEW_LIMIT_PER_MINUTE, 60),
+                    ("preview_hour", PREVIEW_LIMIT_PER_HOUR, 3600)),
+        "download": (("download_hour", DOWNLOAD_LIMIT_PER_HOUR, 3600),
+                     ("download_day", DOWNLOAD_LIMIT_PER_DAY, 86400)),
+    }.get(action)
+    if policies is None:
+        raise ValueError("Unknown rate-limit action")
+
+    try:
+        client_ip = ipaddress.ip_address(request.remote_addr or "").compressed
+    except ValueError:
+        client_ip = "unknown"
+
+    global _RATE_LIMIT_LAST_SWEEP
+    now = time.monotonic()
+    with _RATE_LIMIT_LOCK:
+        if now - _RATE_LIMIT_LAST_SWEEP >= 60:
+            for bucket_key, (events, window) in list(_RATE_LIMIT_BUCKETS.items()):
+                while events and now - events[0] >= window:
+                    events.popleft()
+                if not events:
+                    _RATE_LIMIT_BUCKETS.pop(bucket_key, None)
+            _RATE_LIMIT_LAST_SWEEP = now
+
+        active_buckets = []
+        missing_keys = 0
+        for name, limit, window in policies:
+            key = (client_ip, name)
+            bucket = _RATE_LIMIT_BUCKETS.get(key)
+            if bucket is None:
+                missing_keys += 1
+                active_buckets.append((key, limit, window, None))
+                continue
+            events, stored_window = bucket
+            while events and now - events[0] >= stored_window:
+                events.popleft()
+            if not events:
+                _RATE_LIMIT_BUCKETS.pop(key, None)
+                missing_keys += 1
+                active_buckets.append((key, limit, window, None))
+            else:
+                active_buckets.append((key, limit, stored_window, events))
+
+        if len(_RATE_LIMIT_BUCKETS) + missing_keys > MAX_RATE_LIMIT_BUCKETS:
+            return max(1, max(window for _, _, window in policies))
+
+        retry_after = 0
+        for _, limit, window, events in active_buckets:
+            if events is not None and len(events) >= limit:
+                retry_after = max(retry_after, ceil(window - (now - events[0])))
+        if retry_after:
+            return max(1, retry_after)
+
+        for key, _, window, events in active_buckets:
+            if events is None:
+                events = deque()
+                _RATE_LIMIT_BUCKETS[key] = (events, window)
+            events.append(now)
+    return None
+
+
 def _download_error(message: str, status: int):
     if "text/html" in request.headers.get("Accept", ""):
         return render_template("error.html", error=message), status
     return jsonify(error=message), status
+
+
+def _rate_limit_response(message: str, retry_after: int, html: bool = False):
+    result = _download_error(message, 429) if html else (jsonify(error=message), 429)
+    response = app.make_response(result)
+    response.headers["Retry-After"] = str(max(1, retry_after))
+    return response
 
 
 def _extract_info(url: str, options: dict) -> dict:
@@ -321,13 +403,12 @@ def _extract_info(url: str, options: dict) -> dict:
 @app.after_request
 def add_security_headers(response):
     response.headers.setdefault("X-Content-Type-Options", "nosniff")
-    response.headers.setdefault("X-Frame-Options", "DENY")
     response.headers.setdefault("Referrer-Policy", "no-referrer")
     response.headers.setdefault("Permissions-Policy", "camera=(), microphone=(), geolocation=()")
     response.headers.setdefault(
         "Content-Security-Policy",
         "default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' https: data:; "
-        "connect-src 'self'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'",
+        "connect-src 'self'; base-uri 'self'; form-action 'self'",
     )
     return response
 
@@ -350,6 +431,11 @@ def healthz():
     return jsonify(status="ok")
 
 
+@app.get("/manus-routes.json")
+def manus_routes():
+    return send_from_directory(os.path.join(app.root_path, "public"), "manus-routes.json")
+
+
 @app.get("/api/platforms")
 def api_platforms():
     examples = [name for name, extractor_key in PLATFORM_EXAMPLES if extractor_key in _EXTRACTOR_KEYS]
@@ -361,6 +447,11 @@ def api_platforms():
 
 @app.post("/api/info")
 def api_info():
+    retry_after = _enforce_client_rate_limit("preview")
+    if retry_after is not None:
+        return _rate_limit_response(
+            f"Preview limit reached. Try again in {retry_after} seconds.", retry_after
+        )
     if not _acquire_slot():
         return jsonify(error="The downloader is busy. Please try again shortly."), 429
     temp_dir = None
@@ -398,6 +489,11 @@ def api_info():
 
 @app.post("/download")
 def download():
+    retry_after = _enforce_client_rate_limit("download")
+    if retry_after is not None:
+        return _rate_limit_response(
+            f"Download limit reached. Try again in {retry_after} seconds.", retry_after, html=True
+        )
     if not _acquire_slot():
         return _download_error("The downloader is busy. Please try again shortly.", 429)
 
