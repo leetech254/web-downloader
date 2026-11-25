@@ -33,7 +33,7 @@
         {% if cookie_auth_enabled %}
         <p id="url-help" class="hint">Use a link to one post or media item. Account-restricted content works only with a valid cookie file for your own account.</p>
         {% else %}
-        <p id="url-help" class="hint">Use a public link to one post or media item. Cookie authentication is disabled on this server.</p>
+        <p id="url-help" class="hint">Use a public link to one post or media item.</p>
         {% endif %}
 
         {% if browser_cookies_enabled %}
@@ -60,8 +60,6 @@
           </select>
           <label class="cookie-ack browser-cookie-ack"><input id="browser-cookie-ack" type="checkbox" name="browser_cookie_ack" value="1"> I authorize this local app to read cookies from the selected profile for this request.</label>
         </details>
-        {% else %}
-        <p class="hint cookie-disabled">Browser-profile cookie access is disabled by the server. The operator can enable it with <code>ENABLE_BROWSER_COOKIES=1</code>; it remains localhost-only.</p>
         {% endif %}
 
         {% if cookie_auth_enabled %}
@@ -88,8 +86,6 @@
             <label class="cookie-ack"><input id="cookie-ack" type="checkbox" name="cookie_ack" value="1"> I understand this sends account cookies to this server for this request.</label>
           </div>
         </details>
-        {% else %}
-        <p class="hint cookie-disabled">Cookie authentication is disabled by the server. The operator can enable it with <code>ENABLE_COOKIE_AUTH=1</code>.</p>
         {% endif %}
 
         <div class="options-grid">

@@ -133,6 +133,10 @@ class DownloaderTests(unittest.TestCase):
         self.assertIn(b'by <strong>Lee Tech</strong>', response.data)
         self.assertIn(b'href="https://github.com/leetech254/web-downloader"', response.data)
         self.assertIn(b"Downloads are processed temporarily and removed after transfer.", response.data)
+        self.assertNotIn(b"Browser-profile cookie access is disabled by the server.", response.data)
+        self.assertNotIn(b"Cookie authentication is disabled by the server.", response.data)
+        self.assertNotIn(b"ENABLE_BROWSER_COOKIES=1", response.data)
+        self.assertNotIn(b"ENABLE_COOKIE_AUTH=1", response.data)
         configured_mib = int(round(downloader.MAX_DOWNLOAD_BYTES / (1024 * 1024)))
         self.assertIn(f"configured {configured_mib} MiB cap".encode(), response.data)
 
