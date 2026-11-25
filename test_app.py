@@ -130,6 +130,9 @@ class DownloaderTests(unittest.TestCase):
         self.assertIn(b'id="download-progress-label"', response.data)
         self.assertIn(b"temporarily buffers the download in browser memory", response.data)
         self.assertIn(b'value="auto" checked', response.data)
+        self.assertIn(b'by <strong>Lee Tech</strong>', response.data)
+        self.assertIn(b'href="https://github.com/leetech254/web-downloader"', response.data)
+        self.assertIn(b"Downloads are processed temporarily and removed after transfer.", response.data)
         configured_mib = int(round(downloader.MAX_DOWNLOAD_BYTES / (1024 * 1024)))
         self.assertIn(f"configured {configured_mib} MiB cap".encode(), response.data)
 
@@ -538,6 +541,8 @@ class DownloaderTests(unittest.TestCase):
         self.assertEqual(response.status_code, 400)
         self.assertIn(b"Download not completed", response.data)
         self.assertIn(b"invalid_request", response.data)
+        self.assertIn(b'by <strong>Lee Tech</strong>', response.data)
+        self.assertIn(b"Only save content you have permission to download.", response.data)
 
 
 if __name__ == "__main__":

@@ -69,3 +69,126 @@
 
 .choice input:disabled + span { opacity: .42; cursor: not-allowed; }
 #format-guidance { min-height: 3.2em; }
+
+
+/* Shared Lee Tech footer */
+.site-footer {
+  display: grid;
+  gap: 16px;
+  max-width: 720px;
+  margin: 34px auto 42px;
+  padding-top: 22px;
+  border-top: 1px solid rgba(255, 255, 255, 0.09);
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.55;
+}
+.footer-main {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+}
+.footer-brand {
+  display: inline-flex;
+  min-width: 0;
+  align-items: center;
+  gap: 11px;
+  color: var(--text);
+  text-decoration: none;
+}
+.footer-monogram {
+  display: grid;
+  width: 39px;
+  height: 39px;
+  flex: none;
+  place-items: center;
+  border: 1px solid rgba(181, 192, 255, 0.28);
+  border-radius: 12px;
+  background: linear-gradient(145deg, rgba(170, 181, 255, 0.2), rgba(113, 133, 250, 0.08));
+  color: var(--accent-2);
+  font-family: 'Space Grotesk', system-ui, sans-serif;
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+}
+.footer-brand-copy {
+  display: grid;
+  gap: 2px;
+}
+.footer-product {
+  font-family: 'Space Grotesk', system-ui, sans-serif;
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+}
+.footer-credit {
+  color: var(--muted);
+  font-size: 11px;
+}
+.footer-credit strong {
+  color: var(--accent-2);
+  font-weight: 700;
+}
+.footer-nav {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px 18px;
+}
+.footer-nav a {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  color: #c2ccf6;
+  font-size: 11px;
+  text-decoration: none;
+  white-space: normal;
+}
+.footer-nav a:hover,
+.footer-nav a:focus-visible {
+  color: #fff;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+.footer-bottom {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px 22px;
+  padding-top: 13px;
+  border-top: 1px solid rgba(255, 255, 255, 0.06);
+  color: #8491aa;
+  font-size: 10px;
+}
+.footer-note,
+.footer-legal {
+  margin: 0;
+}
+.footer-legal {
+  text-align: right;
+}
+@media (max-width: 600px) {
+  .site-footer {
+    margin-top: 27px;
+    margin-bottom: 30px;
+    padding-top: 19px;
+  }
+  .footer-main {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 14px;
+  }
+  .footer-nav {
+    justify-content: flex-start;
+    gap: 8px 16px;
+  }
+  .footer-bottom {
+    flex-direction: column;
+    gap: 6px;
+  }
+  .footer-legal {
+    text-align: left;
+  }
+}
