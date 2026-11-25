@@ -1,12 +1,13 @@
 # Media Downloader
 
-A small Flask interface around [yt-dlp](https://github.com/yt-dlp/yt-dlp) for previewing and downloading a single media item as MP4 video, MP3 audio, or its extracted format. It supports the sites and media formats currently handled by yt-dlp; availability can change when source sites change.
+A small Flask interface around [yt-dlp](https://github.com/yt-dlp/yt-dlp) for previewing and downloading a single media item. Auto is the default and lets yt-dlp choose a source-compatible format; visitors can explicitly request MP4 video or MP3 audio when compatible. It supports the sites and media formats currently handled by yt-dlp; availability can change when source sites change.
 
 ## Features
 
 - Link validation and metadata preview before downloading.
-- MP4 video presets through 4K, best-available video, and MP3 output at 128–320 kbps.
-- An auto/original mode for photos and media types that should retain their extracted file format.
+- Automatic preview detection for video, audio-only, image/photo, or unknown media, with incompatible explicit formats disabled when the source type is known.
+- Source-compatible Auto output by default, plus MP4 video presets through 4K and MP3 output at 128–320 kbps when compatible.
+- Explicit format and quality changes reuse the current metadata preview; only changes to the link or cookie/profile request state require another preview.
 - Automatic platform detection using yt-dlp's extractor registry, with common platform examples taken from the installed version rather than a fixed supported-site allow-list.
 - Optional, disabled-by-default Netscape cookie-file authentication for media you can access with your own account.
 - A browser-only cookie-file picker with drag/drop, replace/remove, size feedback, and no localStorage or IndexedDB persistence.

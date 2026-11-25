@@ -75,7 +75,7 @@ class FakeElement {
   }
 }
 
-function makeEnvironment(downloadResponse) {
+function makeEnvironment(downloadResponse, { mediaType = 'video', hasAudio = true, infoResponse = null } = {}) {
   const elements = new Map();
   const get = (id) => {
     if (!elements.has(id)) elements.set(id, new FakeElement(id));
@@ -85,9 +85,11 @@ function makeEnvironment(downloadResponse) {
   const form = get('download-form');
   const url = get('url');
   url.value = 'https://media.example.test/watch/123';
-  const format = get('format-radio');
-  format.value = 'mp4';
-  format.checked = true;
+  const formatRadios = [get('format-auto'), get('format-mp4'), get('format-mp3')];
+  formatRadios[0].value = 'auto';
+  formatRadios[0].checked = true;
+  formatRadios[1].value = 'mp4';
+  formatRadios[2].value = 'mp3';
   const videoQuality = get('video-quality');
   videoQuality.value = '720';
   const audioQuality = get('audio-quality');
@@ -96,11 +98,11 @@ function makeEnvironment(downloadResponse) {
   const spinner = get('spinner');
   get('loading').spinner = spinner;
 
-  form.querySelector = (selector) => selector === 'input[name="format"]:checked' ? format : null;
+  form.querySelector = (selector) => selector === 'input[name="format"]:checked' ? formatRadios.find((radio) => radio.checked) : null;
   form.querySelectorAll = (selector) => {
-    if (selector === 'input[name="format"]') return [format];
+    if (selector === 'input[name="format"]') return formatRadios;
     if (selector === 'select') return [videoQuality, audioQuality];
-    if (selector === 'input:not([type="hidden"]), select') return [url, format, videoQuality, audioQuality];
+    if (selector === 'input:not([type="hidden"]), select') return [url, ...formatRadios, videoQuality, audioQuality];
     return [];
   };
 
@@ -127,9 +129,10 @@ function makeEnvironment(downloadResponse) {
 
   const fetch = async (urlValue) => {
     if (urlValue === '/api/info') {
+      if (infoResponse) return infoResponse;
       return {
         ok: true,
-        json: async () => ({ title: 'Sample video', extractor: 'Example', duration: 10 }),
+        json: async () => ({ title: 'Sample media', extractor: 'Example', duration: 10, media_type: mediaType, has_audio: hasAudio }),
       };
     }
     if (urlValue === '/api/platforms') {
@@ -159,11 +162,66 @@ function makeEnvironment(downloadResponse) {
   return {
     elements,
     form,
+    formatRadios,
     objectUrls,
     preview: async () => get('preview-button').handlers.click(),
     submit: async () => form.handlers.submit({ preventDefault() {} }),
   };
 }
+
+test('defaults to Auto, identifies video, and keeps a valid preview after format and quality changes', async () => {
+  const response = new Response(new Uint8Array([1]), {
+    headers: { 'Content-Length': '1', 'Content-Type': 'video/mp4', 'Content-Disposition': 'attachment; filename="sample.mp4"' },
+  });
+  const env = makeEnvironment(response, { mediaType: 'video', hasAudio: true });
+  assert.equal(env.formatRadios[0].checked, true);
+  assert.match(env.elements.get('format-guidance').textContent, /Preview the link/i);
+  await env.preview();
+
+  assert.equal(env.elements.get('download-button').disabled, false);
+  assert.match(env.elements.get('format-guidance').textContent, /Detected video/i);
+  assert.match(env.elements.get('preview-details').textContent, /Video/);
+  env.formatRadios[1].checked = true;
+  env.formatRadios[1].handlers.change();
+  env.elements.get('video-quality').value = '480';
+  env.elements.get('video-quality').handlers.change();
+  assert.equal(env.elements.get('preview').hidden, false);
+  assert.equal(env.elements.get('download-button').disabled, false);
+});
+
+test('discards preview metadata when the request changes while lookup is pending', async () => {
+  let resolveInfo;
+  const infoResponse = new Promise((resolve) => { resolveInfo = resolve; });
+  const env = makeEnvironment(new Response(new Uint8Array([1])), { infoResponse });
+  const pendingPreview = env.preview();
+  env.elements.get('url').value = 'https://media.example.test/watch/changed';
+  env.elements.get('url').handlers.input();
+  resolveInfo({
+    ok: true,
+    json: async () => ({ title: 'Old item', extractor: 'Example', duration: 10, media_type: 'video', has_audio: true }),
+  });
+  await pendingPreview;
+
+  assert.equal(env.elements.get('preview').hidden, true);
+  assert.equal(env.elements.get('download-button').disabled, true);
+  assert.match(env.elements.get('message').textContent, /changed while the preview was loading/i);
+});
+
+test('disables incompatible formats and switches an image link to Auto when MP4 was chosen before preview', async () => {
+  const response = new Response(new Uint8Array([1]), {
+    headers: { 'Content-Length': '1', 'Content-Type': 'image/jpeg', 'Content-Disposition': 'attachment; filename="photo.jpg"' },
+  });
+  const env = makeEnvironment(response, { mediaType: 'image', hasAudio: false });
+  env.formatRadios[0].checked = false;
+  env.formatRadios[1].checked = true;
+  await env.preview();
+
+  assert.equal(env.formatRadios[0].checked, true);
+  assert.equal(env.formatRadios[1].disabled, true);
+  assert.equal(env.formatRadios[2].disabled, true);
+  assert.match(env.elements.get('format-guidance').textContent, /Auto has been selected/i);
+  assert.equal(env.elements.get('download-button').disabled, false);
+});
 
 test('streams byte progress, creates a save link, and reports received-not-disk-saved completion', async () => {
   const body = new ReadableStream({

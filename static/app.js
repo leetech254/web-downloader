@@ -7,6 +7,9 @@
   const videoLabel = document.getElementById('video-label');
   const audioQuality = document.getElementById('audio-quality');
   const audioLabel = document.getElementById('audio-label');
+  const formatGuidance = document.getElementById('format-guidance');
+  const qualityGuidance = document.getElementById('quality-guidance');
+  const formatRadios = Array.from(form.querySelectorAll('input[name="format"]'));
   const preview = document.getElementById('preview');
   const message = document.getElementById('message');
   const loading = document.getElementById('loading');
@@ -33,6 +36,9 @@
   const maxCookieBytes = Number(cookieManager?.dataset.maxBytes || 0);
   let previewKey = '';
   let downloadObjectUrl = '';
+  let detectedMediaType = 'unknown';
+  let detectedAudio = null;
+  let hasPreviewedMedia = false;
 
   function selectedFormat() {
     return form.querySelector('input[name="format"]:checked').value;
@@ -40,13 +46,13 @@
 
   function selectedQuality() {
     if (selectedFormat() === 'mp3') return audioQuality.value;
-    return selectedFormat() === 'original' ? 'best' : videoQuality.value;
+    return ['auto', 'original'].includes(selectedFormat()) ? 'best' : videoQuality.value;
   }
 
   function currentKey() {
     const file = cookieInput?.files?.[0];
     const cookieState = file ? `${file.name}:${file.size}:${file.lastModified}` : '';
-    return `${urlInput.value.trim()}\n${selectedFormat()}\n${selectedQuality()}\n${cookieState}\n${cookieAck?.checked ? 'acknowledged' : 'not-acknowledged'}\n${browserCookieBrowser?.value || ''}\n${browserCookieProfile?.value || ''}\n${browserCookieKeyring?.value || ''}\n${browserCookieAck?.checked ? 'browser-acknowledged' : 'not-acknowledged'}`;
+    return `${urlInput.value.trim()}\n${cookieState}\n${cookieAck?.checked ? 'acknowledged' : 'not-acknowledged'}\n${browserCookieBrowser?.value || ''}\n${browserCookieProfile?.value || ''}\n${browserCookieKeyring?.value || ''}\n${browserCookieAck?.checked ? 'browser-acknowledged' : 'not-acknowledged'}`;
   }
 
   function hasCookieConsent() {
@@ -109,7 +115,7 @@
   function refreshOptions() {
     const format = selectedFormat();
     const audio = format === 'mp3';
-    const automatic = format === 'original';
+    const automatic = format === 'auto' || format === 'original';
     videoLabel.classList.toggle('hidden', audio || automatic);
     videoQuality.classList.toggle('hidden', audio || automatic);
     videoQuality.disabled = audio || automatic;
@@ -118,12 +124,18 @@
     audioQuality.disabled = !audio;
     audioQuality.name = audio ? 'quality' : '';
     audioLabel.classList.toggle('hidden', !audio);
-    clearPreview();
+    if (qualityGuidance) qualityGuidance.hidden = !automatic;
+    updateFormatGuidance();
   }
 
   function clearPreview() {
     previewKey = '';
     downloadButton.disabled = true;
+    detectedMediaType = 'unknown';
+    detectedAudio = null;
+    hasPreviewedMedia = false;
+    formatRadios.forEach((radio) => { radio.disabled = false; });
+    updateFormatGuidance();
     preview.hidden = true;
     image.hidden = true;
     message.hidden = true;
@@ -162,6 +174,60 @@
     message.className = 'message message-success';
     message.setAttribute('role', 'status');
     message.hidden = false;
+  }
+
+  function setFormat(value) {
+    const radio = formatRadios.find((item) => item.value === value);
+    if (radio) radio.checked = true;
+  }
+
+  function updateFormatGuidance(reason = '') {
+    if (!formatGuidance) return;
+    if (reason) {
+      formatGuidance.textContent = reason;
+      return;
+    }
+    const format = selectedFormat();
+    if (format === 'auto' && !hasPreviewedMedia) {
+      formatGuidance.textContent = 'Auto is selected. Preview the link to identify its media type; Auto avoids forcing MP4 or MP3 conversion.';
+      return;
+    }
+    if (format === 'mp4') {
+      formatGuidance.textContent = 'MP4 video is selected. If the source cannot provide a compatible video stream, switch to Auto.';
+    } else if (format === 'mp3') {
+      formatGuidance.textContent = 'MP3 conversion is selected and needs an audio track. Choose Auto to keep a compatible source format.';
+    } else if (detectedMediaType === 'video') {
+      formatGuidance.textContent = 'Detected video. Auto lets yt-dlp choose a compatible source format; MP4 and MP3 remain optional.';
+    } else if (detectedMediaType === 'audio') {
+      formatGuidance.textContent = 'Detected audio-only media. Auto keeps a compatible audio format; MP4 is unavailable.';
+    } else if (detectedMediaType === 'image') {
+      formatGuidance.textContent = 'Detected image/photo media. Auto keeps the original format; MP4 and MP3 are unavailable.';
+    } else {
+      formatGuidance.textContent = 'Auto is recommended because the media type could not be confirmed. It lets yt-dlp choose a compatible source format.';
+    }
+  }
+
+  function updateFormatAvailability(mediaType, hasAudio = null) {
+    detectedMediaType = ['video', 'audio', 'image'].includes(mediaType) ? mediaType : 'unknown';
+    detectedAudio = typeof hasAudio === 'boolean' ? hasAudio : null;
+    hasPreviewedMedia = true;
+    const mp4 = formatRadios.find((item) => item.value === 'mp4');
+    const mp3 = formatRadios.find((item) => item.value === 'mp3');
+    if (mp4) mp4.disabled = detectedMediaType === 'audio' || detectedMediaType === 'image';
+    if (mp3) mp3.disabled = detectedMediaType === 'image' || (detectedMediaType === 'video' && detectedAudio === false);
+
+    const selected = formatRadios.find((item) => item.checked);
+    if (selected?.disabled) {
+      const previous = selected.value;
+      setFormat('auto');
+      refreshOptions();
+      const reason = previous === 'mp4'
+        ? `MP4 is unavailable for detected ${detectedMediaType === 'audio' ? 'audio-only' : 'image'} media; Auto has been selected.`
+        : 'MP3 is unavailable because no audio track was detected; Auto has been selected.';
+      updateFormatGuidance(reason);
+      return;
+    }
+    updateFormatGuidance();
   }
 
   function friendlyNetworkError(error) {
@@ -251,9 +317,12 @@
     downloadButton.disabled = busy || !previewKey || currentKey() !== previewKey;
   }
 
-  form.querySelectorAll('input[name="format"]').forEach((radio) => radio.addEventListener('change', refreshOptions));
-  [urlInput, videoQuality, audioQuality, browserCookieProfile].filter(Boolean).forEach((control) => control.addEventListener('input', clearPreview));
-  form.querySelectorAll('select').forEach((control) => control.addEventListener('change', clearPreview));
+  formatRadios.forEach((radio) => radio.addEventListener('change', refreshOptions));
+  [urlInput, browserCookieProfile].filter(Boolean).forEach((control) => control.addEventListener('input', clearPreview));
+  form.querySelectorAll('select').forEach((control) => control.addEventListener('change', () => {
+    if ([videoQuality, audioQuality].includes(control)) updateFormatGuidance();
+    else clearPreview();
+  }));
   cookieInput?.addEventListener('change', () => {
     const file = cookieInput.files?.[0];
     if (file && maxCookieBytes && file.size > maxCookieBytes) {
@@ -307,6 +376,7 @@
     const url = urlInput.value.trim();
     if (!urlInput.reportValidity()) return;
     if (!hasCookieConsent() || !hasBrowserCookieConsent()) return;
+    const requestKey = currentKey();
     previewButton.disabled = true;
     previewButton.textContent = 'Checking…';
     message.textContent = 'Checking the link and loading media details…';
@@ -321,6 +391,10 @@
         body: data,
       });
       const result = await response.json().catch(() => ({}));
+      if (currentKey() !== requestKey) {
+        showError('The link or cookie settings changed while the preview was loading. Preview the current request again.');
+        return;
+      }
       if (!response.ok) {
         const fallback = response.status === 413
           ? 'The request or cookie file exceeds the server upload limit.'
@@ -328,8 +402,14 @@
         throw new Error(result.error || fallback);
       }
 
+      updateFormatAvailability(result.media_type, result.has_audio);
       document.getElementById('preview-title').textContent = result.title || 'Untitled media';
-      const details = [result.extractor, result.uploader, formatDuration(result.duration)].filter(Boolean);
+      const mediaLabel = {
+        video: 'Video',
+        audio: 'Audio only',
+        image: 'Image / photo',
+      }[result.media_type] || 'Media type unconfirmed';
+      const details = [mediaLabel, result.extractor, result.uploader, formatDuration(result.duration)].filter(Boolean);
       document.getElementById('preview-details').textContent = details.join(' · ');
       if (result.thumbnail) {
         image.src = result.thumbnail;
@@ -337,10 +417,12 @@
       }
       preview.hidden = false;
       message.hidden = true;
-      previewKey = currentKey();
+      previewKey = requestKey;
       downloadButton.disabled = false;
     } catch (error) {
-      showError(friendlyNetworkError(error));
+      showError(currentKey() !== requestKey
+        ? 'The link or cookie settings changed while the preview was loading. Preview the current request again.'
+        : friendlyNetworkError(error));
     } finally {
       previewButton.disabled = false;
       previewButton.textContent = 'Preview link';

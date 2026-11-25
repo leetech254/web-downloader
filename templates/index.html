@@ -94,12 +94,13 @@
 
         <div class="options-grid">
           <fieldset>
-            <legend>Output format</legend>
+            <legend>Download format</legend>
             <div class="choice-row">
-              <label class="choice"><input type="radio" name="format" value="mp4" checked><span>Video <small>MP4</small></span></label>
+              <label class="choice"><input type="radio" name="format" value="auto" checked><span>Auto <small>Recommended</small></span></label>
+              <label class="choice"><input type="radio" name="format" value="mp4"><span>Video <small>MP4</small></span></label>
               <label class="choice"><input type="radio" name="format" value="mp3"><span>Audio <small>MP3</small></span></label>
-              <label class="choice"><input type="radio" name="format" value="original"><span>Auto <small>Photos / original</small></span></label>
             </div>
+            <p id="format-guidance" class="hint" role="status" aria-live="polite">Auto will use a source-compatible format. Preview the link to see whether it contains video, audio, or images.</p>
           </fieldset>
           <div>
             <label class="field-label" for="video-quality" id="video-label">Video quality</label>
@@ -119,6 +120,7 @@
               <option value="192" selected>192 kbps</option>
               <option value="128">128 kbps</option>
             </select>
+            <p id="quality-guidance" class="hint">Auto keeps the best compatible source quality; choose MP4 or MP3 to customize or convert.</p>
           </div>
         </div>
 

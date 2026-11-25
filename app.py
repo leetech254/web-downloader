@@ -67,6 +67,8 @@ SIDECAR_EXTENSIONS = {
     ".webp", ".jpg", ".jpeg", ".png", ".gif", ".json", ".description",
     ".vtt", ".srt", ".ass", ".lrc", ".part", ".ytdl", ".temp",
 }
+IMAGE_EXTENSIONS = {"apng", "avif", "bmp", "gif", "heic", "heif", "jpeg", "jpg", "png", "tif", "tiff", "webp"}
+VALID_FORMATS = {"auto", "mp4", "mp3", "original"}
 
 
 class InputError(ValueError):
@@ -117,7 +119,19 @@ def validate_url(value: str) -> str:
     return value
 
 
+def _validate_quality(format_type: str, quality: str) -> None:
+    if format_type == "mp3" and quality not in AUDIO_QUALITIES:
+        raise InputError("Choose a supported MP3 bitrate.")
+    if format_type == "mp4" and quality not in VIDEO_QUALITIES:
+        raise InputError("Choose a supported video quality.")
+
+
 def _options(format_type: str, quality: str, output_template: str) -> dict:
+    _validate_quality(format_type, quality)
+    if format_type == "auto":
+        # Let yt-dlp choose a compatible format from the source without forcing conversion.
+        return {"outtmpl": output_template}
+
     if format_type == "original":
         return {
             "format": "best/bestvideo+bestaudio",
@@ -125,8 +139,6 @@ def _options(format_type: str, quality: str, output_template: str) -> dict:
         }
 
     if format_type == "mp3":
-        if quality not in AUDIO_QUALITIES:
-            raise InputError("Choose a supported MP3 bitrate.")
         return {
             "format": "bestaudio/best",
             "outtmpl": output_template,
@@ -139,8 +151,6 @@ def _options(format_type: str, quality: str, output_template: str) -> dict:
 
     if format_type != "mp4":
         raise InputError("Choose MP4 video or MP3 audio.")
-    if quality not in VIDEO_QUALITIES:
-        raise InputError("Choose a supported video quality.")
 
     if quality == "best":
         fmt = "bestvideo+bestaudio/best"
@@ -282,6 +292,44 @@ def _duration(info: dict) -> int | None:
         return max(0, int(value)) if value is not None else None
     except (TypeError, ValueError, OverflowError):
         return None
+
+
+def _stream_availability(info: dict, codec_key: str) -> bool | None:
+    """Return whether a stream exists, or None when the extractor gives no codec evidence."""
+    formats = info.get("formats")
+    candidates = [info, *(formats if isinstance(formats, list) else [])]
+    codec_values = [item.get(codec_key) for item in candidates if isinstance(item, dict) and codec_key in item]
+    if any(value and str(value).casefold() not in {"none", "unknown"} for value in codec_values):
+        return True
+    return False if codec_values else None
+
+
+def _media_type(info: dict) -> str:
+    """Classify extractor metadata without tying detection to the requested output format."""
+    if _stream_availability(info, "vcodec") is True:
+        return "video"
+    if _stream_availability(info, "acodec") is True:
+        return "audio"
+    candidates = [info]
+    formats = info.get("formats")
+    if isinstance(formats, list):
+        candidates.extend(formats)
+    extensions = {
+        str(item.get("ext") or "").casefold().lstrip(".")
+        for item in candidates if isinstance(item, dict)
+    }
+    if extensions & IMAGE_EXTENSIONS:
+        return "image"
+    return "unknown"
+
+
+def _validate_format_for_media(format_type: str, media_type: str, has_audio: bool | None) -> None:
+    if format_type == "mp4" and media_type == "audio":
+        raise InputError("This link contains audio-only media. Choose Auto or MP3 instead of MP4.")
+    if format_type in {"mp4", "mp3"} and media_type == "image":
+        raise InputError("This link contains images, not audio or video. Choose Auto to keep the original format.")
+    if format_type == "mp3" and media_type == "video" and has_audio is False:
+        raise InputError("This video has no detected audio track. Choose Auto or MP4 instead of MP3.")
 
 
 def _safe_title(value: object) -> str:
@@ -492,7 +540,8 @@ def api_info():
         browser_cookies = _browser_cookie_options()
         temp_dir = tempfile.mkdtemp(prefix="web-downloader-preview-")
         cookie_path = _store_cookie_upload(temp_dir)
-        options = _options(request.form.get("format", "mp4"), request.form.get("quality", "1080"), "%(id)s.%(ext)s")
+        # Preview all source formats first so an output choice cannot prevent detection.
+        options = {}
         if cookie_path:
             options["cookiefile"] = cookie_path
         if browser_cookies:
@@ -507,6 +556,8 @@ def api_info():
             duration=_duration(info),
             thumbnail=thumb,
             extractor=_safe_title(info.get("extractor_key") or info.get("extractor") or "Media site"),
+            media_type=_media_type(info),
+            has_audio=_stream_availability(info, "acodec"),
         )
     except RequestEntityTooLarge:
         return _download_error(
@@ -544,26 +595,37 @@ def download():
     try:
         url = validate_url(request.form.get("url", ""))
         browser_cookies = _browser_cookie_options()
-        format_type = request.form.get("format", "mp4")
+        format_type = request.form.get("format", "auto")
         quality = request.form.get("quality", "1080")
+        if format_type not in VALID_FORMATS:
+            raise InputError("Choose Auto, MP4 video, MP3 audio, or original format.")
+        _validate_quality(format_type, quality)
         temp_dir = tempfile.mkdtemp(prefix="web-downloader-")
         cookie_path = _store_cookie_upload(temp_dir)
         unique_name = uuid.uuid4().hex
         output_template = os.path.join(temp_dir, unique_name + ".%(ext)s")
+        extract_options = _base_options()
+        if cookie_path:
+            extract_options["cookiefile"] = cookie_path
+        if browser_cookies:
+            extract_options["cookiesfrombrowser"] = browser_cookies
+
+        with yt_dlp.YoutubeDL(extract_options) as extractor:
+            info = extractor.extract_info(url, download=False)
+        if not isinstance(info, dict) or info.get("_type") in {"playlist", "multi_video"}:
+            raise InputError("Playlist and collection URLs are not supported; use a single media item.")
+        duration = _duration(info)
+        if duration is not None and duration > MAX_DURATION_SECONDS:
+            raise InputError(f"This media is longer than the {MAX_DURATION_SECONDS // 3600}-hour server limit.")
+        media_type = _media_type(info)
+        has_audio = _stream_availability(info, "acodec")
+        _validate_format_for_media(format_type, media_type, has_audio)
         format_options = _options(format_type, quality, output_template)
         if cookie_path:
             format_options["cookiefile"] = cookie_path
         if browser_cookies:
             format_options["cookiesfrombrowser"] = browser_cookies
-        options = {**_base_options(), **format_options}
-
-        with yt_dlp.YoutubeDL(options) as ydl:
-            info = ydl.extract_info(url, download=False)
-            if not isinstance(info, dict) or info.get("_type") in {"playlist", "multi_video"}:
-                raise InputError("Playlist and collection URLs are not supported; use a single media item.")
-            duration = _duration(info)
-            if duration is not None and duration > MAX_DURATION_SECONDS:
-                raise InputError(f"This media is longer than the {MAX_DURATION_SECONDS // 3600}-hour server limit.")
+        with yt_dlp.YoutubeDL({**_base_options(), **format_options}) as ydl:
             ydl.process_ie_result(info, download=True)
 
         candidates = []

@@ -12,9 +12,11 @@ class FakeYoutubeDL:
     cookie_path = None
     cookie_mode = None
     browser_options = None
+    last_options = None
 
     def __init__(self, options):
         self.options = options
+        FakeYoutubeDL.last_options = options
         FakeYoutubeDL.browser_options = options.get("cookiesfrombrowser")
         cookie_path = options.get("cookiefile")
         if cookie_path:
@@ -35,6 +37,8 @@ class FakeYoutubeDL:
             "extractor_key": "Example",
             "duration": 123,
             "thumbnail": "https://cdn.example.test/thumb.jpg",
+            "ext": "mp4",
+            "formats": [{"format_id": "video", "ext": "mp4", "vcodec": "avc1", "acodec": "mp4a"}],
             "_type": "video",
         }
 
@@ -59,6 +63,22 @@ class LongYoutubeDL(FakeYoutubeDL):
         return info
 
 
+class AudioOnlyYoutubeDL(FakeYoutubeDL):
+    def extract_info(self, url, download=False):
+        info = super().extract_info(url, download)
+        info["ext"] = "m4a"
+        info["formats"] = [{"format_id": "audio", "ext": "m4a", "vcodec": "none", "acodec": "mp4a"}]
+        return info
+
+
+class ImageYoutubeDL(FakeYoutubeDL):
+    def extract_info(self, url, download=False):
+        info = super().extract_info(url, download)
+        info["ext"] = "jpg"
+        info["formats"] = [{"format_id": "image", "ext": "jpg", "vcodec": "none", "acodec": "none"}]
+        return info
+
+
 class DownloaderTests(unittest.TestCase):
     def setUp(self):
         downloader.app.config.update(TESTING=True)
@@ -66,6 +86,7 @@ class DownloaderTests(unittest.TestCase):
         FakeYoutubeDL.cookie_path = None
         FakeYoutubeDL.cookie_mode = None
         FakeYoutubeDL.browser_options = None
+        FakeYoutubeDL.last_options = None
         with downloader._RATE_LIMIT_LOCK:
             downloader._RATE_LIMIT_BUCKETS.clear()
             downloader._RATE_LIMIT_LAST_SWEEP = downloader.time.monotonic()
@@ -108,6 +129,7 @@ class DownloaderTests(unittest.TestCase):
         self.assertIn(b'id="download-progress"', response.data)
         self.assertIn(b'id="download-progress-label"', response.data)
         self.assertIn(b"temporarily buffers the download in browser memory", response.data)
+        self.assertIn(b'value="auto" checked', response.data)
         configured_mib = int(round(downloader.MAX_DOWNLOAD_BYTES / (1024 * 1024)))
         self.assertIn(f"configured {configured_mib} MiB cap".encode(), response.data)
 
@@ -127,7 +149,20 @@ class DownloaderTests(unittest.TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.json["title"], "Sample media safe title")
         self.assertEqual(response.json["duration"], 123)
+        self.assertEqual(response.json["media_type"], "video")
+        self.assertTrue(response.json["has_audio"])
         self.assertNotIn("webpage_url", response.json)
+
+    @patch("app.socket.getaddrinfo")
+    @patch("app.yt_dlp.YoutubeDL", AudioOnlyYoutubeDL)
+    def test_preview_detects_audio_without_failing_an_explicit_mp4_choice(self, resolver):
+        resolver.side_effect = self.public_dns
+        response = self.client.post("/api/info", data={
+            "url": "https://example.com/audio", "format": "mp4", "quality": "720"
+        })
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json["media_type"], "audio")
+        self.assertTrue(response.json["has_audio"])
 
     @patch("app.socket.getaddrinfo")
     @patch("app.yt_dlp.YoutubeDL", FakeYoutubeDL)
@@ -177,12 +212,29 @@ class DownloaderTests(unittest.TestCase):
         self.assertEqual(downloader._RATE_LIMIT_BUCKETS, {})
         self.assertGreaterEqual(int(response.headers["Retry-After"]), 1)
 
-    def test_invalid_format_is_rejected_before_extractor_runs(self):
-        response = self.client.post("/api/info", data={
-            "url": "https://localhost/watch", "format": "exe", "quality": "best"
-        })
+    @patch("app.socket.getaddrinfo")
+    @patch("app.yt_dlp.YoutubeDL", FakeYoutubeDL)
+    def test_invalid_download_format_is_rejected_before_extractor_runs(self, resolver):
+        resolver.side_effect = self.public_dns
+        response = self.client.post("/download", data={
+            "url": "https://example.com/watch", "format": "exe", "quality": "best"
+        }, headers={"Accept": "application/json"})
         self.assertEqual(response.status_code, 400)
         self.assertEqual(response.json["code"], "invalid_request")
+        self.assertIsNone(FakeYoutubeDL.last_options)
+
+    @patch("app.socket.getaddrinfo")
+    @patch("app.yt_dlp.YoutubeDL", FakeYoutubeDL)
+    def test_invalid_explicit_quality_is_rejected_before_extractor_runs(self, resolver):
+        resolver.side_effect = self.public_dns
+        for format_type, quality in (("mp4", "9999"), ("mp3", "999")):
+            with self.subTest(format=format_type, quality=quality):
+                response = self.client.post("/download", data={
+                    "url": "https://example.com/watch", "format": format_type, "quality": quality
+                }, headers={"Accept": "application/json"})
+                self.assertEqual(response.status_code, 400)
+                self.assertEqual(response.json["code"], "invalid_request")
+                self.assertIsNone(FakeYoutubeDL.last_options)
 
     def test_oversized_request_returns_structured_413(self):
         with patch.dict(downloader.app.config, {"MAX_CONTENT_LENGTH": 128}):
@@ -257,10 +309,48 @@ class DownloaderTests(unittest.TestCase):
         self.assertIn("height<=720", options["format"])
         self.assertNotIn("/best", options["format"].split("/", 1)[-1])
 
+    def test_auto_mode_leaves_source_format_unforced(self):
+        options = downloader._options("auto", "best", "%(id)s.%(ext)s")
+        self.assertEqual(options, {"outtmpl": "%(id)s.%(ext)s"})
+
     def test_original_mode_keeps_extractor_selected_media_format(self):
         options = downloader._options("original", "best", "%(id)s.%(ext)s")
         self.assertIn("best", options["format"])
         self.assertNotIn("merge_output_format", options)
+
+    @patch("app.socket.getaddrinfo")
+    @patch("app.yt_dlp.YoutubeDL", AudioOnlyYoutubeDL)
+    def test_mp4_is_rejected_for_audio_only_media(self, resolver):
+        resolver.side_effect = self.public_dns
+        response = self.client.post("/download", data={
+            "url": "https://example.com/audio", "format": "mp4", "quality": "720"
+        }, headers={"Accept": "application/json"})
+        self.assertEqual(response.status_code, 400)
+        self.assertIn("audio-only", response.json["error"])
+        self.assertIn("Auto or MP3", response.json["error"])
+
+    @patch("app.socket.getaddrinfo")
+    @patch("app.yt_dlp.YoutubeDL", ImageYoutubeDL)
+    def test_mp3_is_rejected_for_image_media(self, resolver):
+        resolver.side_effect = self.public_dns
+        response = self.client.post("/download", data={
+            "url": "https://example.com/photo", "format": "mp3", "quality": "192"
+        }, headers={"Accept": "application/json"})
+        self.assertEqual(response.status_code, 400)
+        self.assertIn("images", response.json["error"])
+        self.assertIn("Auto", response.json["error"])
+
+    @patch("app.socket.getaddrinfo")
+    @patch("app.yt_dlp.YoutubeDL", FakeYoutubeDL)
+    def test_auto_download_uses_extractor_default_selection(self, resolver):
+        resolver.side_effect = self.public_dns
+        response = self.client.post("/download", data={
+            "url": "https://example.com/watch?v=1"
+        }, headers={"Accept": "application/octet-stream"})
+        self.assertEqual(response.status_code, 200)
+        self.assertNotIn("format", FakeYoutubeDL.last_options)
+        self.assertNotIn("merge_output_format", FakeYoutubeDL.last_options)
+        response.close()
 
     def test_platform_examples_come_from_installed_extractors(self):
         response = self.client.get("/api/platforms")
