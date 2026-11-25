@@ -319,6 +319,13 @@
 
   formatRadios.forEach((radio) => radio.addEventListener('change', refreshOptions));
   [urlInput, browserCookieProfile].filter(Boolean).forEach((control) => control.addEventListener('input', clearPreview));
+  urlInput.addEventListener('paste', () => {
+    setTimeout(() => {
+      const pastedUrl = urlInput.value.trim();
+      if (!/^https?:\/\//i.test(pastedUrl) || previewButton.disabled) return;
+      previewButton.click();
+    }, 0);
+  });
   form.querySelectorAll('select').forEach((control) => control.addEventListener('change', () => {
     if ([videoQuality, audioQuality].includes(control)) updateFormatGuidance();
     else clearPreview();

@@ -4,7 +4,7 @@ A small Flask interface around [yt-dlp](https://github.com/yt-dlp/yt-dlp) for pr
 
 ## Features
 
-- Link validation and metadata preview before downloading.
+- Link validation and metadata preview before downloading; pasting a complete HTTP(S) link starts the preview automatically, and the Preview link button remains available.
 - Automatic preview detection for video, audio-only, image/photo, or unknown media, with incompatible explicit formats disabled when the source type is known.
 - Source-compatible Auto output by default, plus MP4 video presets through 4K and MP3 output at 128–320 kbps when compatible.
 - Explicit format and quality changes reuse the current metadata preview; only changes to the link or cookie/profile request state require another preview.
@@ -51,6 +51,7 @@ All settings are optional environment variables:
 | Variable | Default | Purpose |
 | --- | ---: | --- |
 | `PORT` | `5000` | Listening port for the development server/container. |
+| `PUBLIC_SITE_URL` | Manus image: `https://mediagrab-kbljqk2v.manus.space`; Vercel image: empty | Explicit public site origin for canonical, sitemap, and social-image URLs. Do not include a path; on Vercel, set this to the production domain. |
 | `SOCKET_TIMEOUT` | `30` | yt-dlp socket timeout in seconds (minimum 5). |
 | `MAX_DOWNLOAD_BYTES` | `1073741824` | Maximum size accepted (1 GiB by default). |
 | `MAX_DURATION_SECONDS` | `14400` | Maximum media duration (4 hours by default). |
@@ -81,9 +82,13 @@ For an internet-facing deployment, terminate TLS at a trusted ingress, monitor d
 
 `Dockerfile.vercel` selects Vercel's Container Runtime rather than the Flask/Python Function preset, while preserving the app's FFmpeg, Gunicorn, non-root user, and conservative public-service defaults. It listens on Vercel's default port 80 and honors the platform-provided `PORT`. The Container Runtime is currently documented as beta; confirm current plan and runtime limits before relying on it for a public service.
 
-To try a deployment, import this GitHub repository into Vercel with the repository root as the project root and let Vercel build the container. Keep cookie authentication and browser-profile access disabled. Set a stable random `FLASK_SECRET_KEY` in project environment variables if using multiple workers or instances; never commit secrets. After deployment, test preview, video and audio conversion, error handling, and actual downloads from the target platforms.
+To try a deployment, import this GitHub repository into Vercel with the repository root as the project root and let Vercel build the container. Keep cookie authentication and browser-profile access disabled. Set `PUBLIC_SITE_URL` to the stable HTTPS production domain (for example, `https://your-production-domain.example`) so canonical, sitemap, and social-preview URLs do not point to a Preview deployment; `/sitemap.xml` returns a configuration error and absolute metadata is omitted until this value is set. Set a stable random `FLASK_SECRET_KEY` in project environment variables if using multiple workers or instances; never commit secrets. After deployment, test preview, video and audio conversion, error handling, and actual downloads from the target platforms.
 
 Vercel function limits still matter for container deployments. Vercel documents a 300-second maximum duration for Hobby functions, and response bodies are limited to 4.5 MB unless streamed. This app permits outputs up to 250 MiB and source media up to one hour, so large or slow downloads and FFmpeg work are not guaranteed to complete within Hobby limits. Confirm that the deployed runtime streams the attachment successfully and verify real end-to-end timing before treating a Vercel deployment as production-ready; use an external worker/storage architecture if the limits are insufficient. See [Vercel Container Runtime](https://vercel.com/docs/functions/runtimes/container), [function duration](https://vercel.com/docs/functions/configuring-functions/duration), and [function limits](https://vercel.com/docs/functions/limitations).
+
+## Search and share previews
+
+The homepage sends its title, description, canonical URL, Open Graph fields, and X large-image card tags in server-rendered HTML. `/robots.txt` guides crawlers away from utility endpoints, while `/sitemap.xml` lists only the public homepage; these files help discovery but do not guarantee indexing. See Google's [sitemap guidance](https://developers.google.com/search/docs/crawling-indexing/sitemaps/overview) and the [Open Graph protocol](https://ogp.me/). The Manus container has the current public origin as its default. The Vercel container intentionally leaves `PUBLIC_SITE_URL` empty until the production domain is known, and absolute canonical/social/sitemap URLs are omitted rather than inferred from request or Preview hosts.
 
 ## Security and privacy
 

@@ -15,10 +15,11 @@ import uuid
 from collections import deque
 from math import ceil
 from urllib.parse import urlsplit
+from xml.etree.ElementTree import Element, SubElement, tostring
 
 import yt_dlp
 from yt_dlp.extractor import gen_extractor_classes
-from flask import Flask, jsonify, render_template, request, send_file, send_from_directory, session
+from flask import Flask, Response, jsonify, render_template, request, send_file, send_from_directory, session
 from werkzeug.middleware.proxy_fix import ProxyFix
 from werkzeug.exceptions import RequestEntityTooLarge
 from werkzeug.wsgi import ClosingIterator
@@ -26,6 +27,30 @@ from werkzeug.wsgi import ClosingIterator
 app = Flask(__name__)
 app.secret_key = os.getenv("FLASK_SECRET_KEY") or secrets.token_hex(32)
 app.config.update(SESSION_COOKIE_HTTPONLY=True, SESSION_COOKIE_SAMESITE="Strict")
+
+DEFAULT_PUBLIC_SITE_URL = "https://mediagrab-kbljqk2v.manus.space"
+
+
+def _configured_public_site_url() -> str:
+    """Return an explicitly configured public origin, never a request-derived host."""
+    value = os.getenv("PUBLIC_SITE_URL", DEFAULT_PUBLIC_SITE_URL).strip().rstrip("/")
+    if not value:
+        return ""
+    parsed = urlsplit(value)
+    if (
+        parsed.scheme not in {"http", "https"}
+        or not parsed.hostname
+        or parsed.username is not None
+        or parsed.password is not None
+        or parsed.path not in {"", "/"}
+        or parsed.query
+        or parsed.fragment
+    ):
+        raise ValueError("PUBLIC_SITE_URL must be an absolute HTTP(S) site origin without a path, query, or fragment.")
+    return f"{parsed.scheme}://{parsed.netloc}"
+
+
+PUBLIC_SITE_URL = _configured_public_site_url()
 
 SOCKET_TIMEOUT = max(5, int(os.getenv("SOCKET_TIMEOUT", "30")))
 MAX_DOWNLOAD_BYTES = max(1, int(os.getenv("MAX_DOWNLOAD_BYTES", str(1024**3))))
@@ -475,7 +500,19 @@ def add_security_headers(response):
         "default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' https: data:; "
         "connect-src 'self'; base-uri 'self'; form-action 'self'",
     )
+    if request.endpoint not in {"index", "robots_txt", "sitemap_xml", "static"} or response.status_code >= 400:
+        response.headers.setdefault("X-Robots-Tag", "noindex, nofollow")
     return response
+
+
+@app.context_processor
+def inject_public_metadata_urls():
+    """Provide absolute crawler URLs only when a public origin is configured."""
+    return {
+        "public_site_url": PUBLIC_SITE_URL,
+        "canonical_url": f"{PUBLIC_SITE_URL}/" if PUBLIC_SITE_URL else "",
+        "social_image_url": f"{PUBLIC_SITE_URL}/static/social-preview.jpg" if PUBLIC_SITE_URL else "",
+    }
 
 
 @app.errorhandler(413)
@@ -499,6 +536,36 @@ def index():
         browser_cookie_sources=BROWSER_COOKIE_SOURCES,
         csrf_token=csrf_token,
     )
+
+
+@app.get("/robots.txt")
+def robots_txt():
+    lines = [
+        "User-agent: *",
+        "Allow: /",
+        "Disallow: /api/",
+        "Disallow: /download",
+        "Disallow: /healthz",
+        "Disallow: /manus-routes.json",
+    ]
+    if PUBLIC_SITE_URL:
+        lines.append(f"Sitemap: {PUBLIC_SITE_URL}/sitemap.xml")
+    return Response("\n".join(lines) + "\n", mimetype="text/plain")
+
+
+@app.get("/sitemap.xml")
+def sitemap_xml():
+    if not PUBLIC_SITE_URL:
+        return Response(
+            "Configure PUBLIC_SITE_URL to publish an absolute sitemap location.\n",
+            status=503,
+            mimetype="text/plain",
+        )
+    urlset = Element("urlset", xmlns="http://www.sitemaps.org/schemas/sitemap/0.9")
+    url = SubElement(urlset, "url")
+    SubElement(url, "loc").text = f"{PUBLIC_SITE_URL}/"
+    xml = b'<?xml version="1.0" encoding="UTF-8"?>\n' + tostring(urlset, encoding="utf-8")
+    return Response(xml, mimetype="application/xml")
 
 
 @app.get("/healthz")

@@ -2,6 +2,7 @@ import os
 import stat
 import tempfile
 import unittest
+from xml.etree.ElementTree import fromstring
 from io import BytesIO
 from unittest.mock import patch
 
@@ -140,10 +141,75 @@ class DownloaderTests(unittest.TestCase):
         configured_mib = int(round(downloader.MAX_DOWNLOAD_BYTES / (1024 * 1024)))
         self.assertIn(f"configured {configured_mib} MiB cap".encode(), response.data)
 
+    def test_homepage_has_server_rendered_search_and_social_metadata(self):
+        with patch.object(downloader, "PUBLIC_SITE_URL", "https://social.example.test"):
+            response = self.client.get("/")
+        self.assertEqual(response.status_code, 200)
+        html = response.get_data(as_text=True)
+        self.assertIn("<title>Media Downloader by Lee Tech — Save public media</title>", html)
+        self.assertIn('name="description" content="Preview supported public video, audio, and image links', html)
+        self.assertIn('name="keywords" content="media downloader, social media downloader, video downloader, audio downloader, Media Downloader"', html)
+        self.assertIn('name="robots" content="index,follow"', html)
+        self.assertIn('<link rel="canonical" href="https://social.example.test/">', html)
+        self.assertIn('property="og:type" content="website"', html)
+        self.assertIn('property="og:url" content="https://social.example.test/"', html)
+        self.assertIn('property="og:image" content="https://social.example.test/static/social-preview.jpg"', html)
+        self.assertIn('property="og:image:width" content="1200"', html)
+        self.assertIn('property="og:image:height" content="630"', html)
+        self.assertIn('name="twitter:card" content="summary_large_image"', html)
+        self.assertIn('name="twitter:image" content="https://social.example.test/static/social-preview.jpg"', html)
+        self.assertIn('<h1 id="page-title">Save media for<br><span>offline viewing.</span></h1>', html)
+
+    def test_robots_and_sitemap_use_the_configured_origin_and_public_route_only(self):
+        with patch.object(downloader, "PUBLIC_SITE_URL", "https://social.example.test"):
+            robots = self.client.get("/robots.txt")
+            sitemap = self.client.get("/sitemap.xml")
+        self.assertEqual(robots.status_code, 200)
+        self.assertEqual(robots.mimetype, "text/plain")
+        rules = robots.get_data(as_text=True)
+        self.assertIn("User-agent: *", rules)
+        self.assertIn("Allow: /", rules)
+        self.assertIn("Disallow: /api/", rules)
+        self.assertIn("Disallow: /download", rules)
+        self.assertIn("Disallow: /healthz", rules)
+        self.assertIn("Sitemap: https://social.example.test/sitemap.xml", rules)
+        self.assertEqual(sitemap.status_code, 200)
+        self.assertEqual(sitemap.mimetype, "application/xml")
+        root = fromstring(sitemap.data)
+        namespace = {"s": "http://www.sitemaps.org/schemas/sitemap/0.9"}
+        locations = [node.text for node in root.findall("s:url/s:loc", namespace)]
+        self.assertEqual(locations, ["https://social.example.test/"])
+
+    def test_unconfigured_origin_omits_absolute_metadata_and_sitemap_discovery(self):
+        with patch.object(downloader, "PUBLIC_SITE_URL", ""):
+            homepage = self.client.get("/").get_data(as_text=True)
+            robots = self.client.get("/robots.txt").get_data(as_text=True)
+            sitemap = self.client.get("/sitemap.xml")
+        self.assertNotIn('rel="canonical"', homepage)
+        self.assertNotIn('property="og:image"', homepage)
+        self.assertNotIn('name="twitter:image"', homepage)
+        self.assertNotIn("Sitemap:", robots)
+        self.assertEqual(sitemap.status_code, 503)
+
+    def test_social_preview_image_is_public_and_has_the_declared_mime_type(self):
+        response = self.client.get("/static/social-preview.jpg")
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.mimetype, "image/jpeg")
+        self.assertNotIn("X-Robots-Tag", response.headers)
+        self.assertGreater(len(response.data), 0)
+        response.close()
+
+    def test_utility_and_error_responses_are_noindex(self):
+        for path in ("/healthz", "/api/platforms", "/manus-routes.json"):
+            with self.subTest(path=path):
+                response = self.client.get(path)
+                self.assertEqual(response.headers.get("X-Robots-Tag"), "noindex, nofollow")
+                response.close()
+
     def test_manus_route_manifest_is_served_at_root(self):
         response = self.client.get("/manus-routes.json")
         self.assertEqual(response.status_code, 200)
-        self.assertEqual(response.json, {"routes": [{"path": "/", "title": "Media Downloader"}]})
+        self.assertEqual(response.json, {"routes": [{"path": "/", "title": "Media Downloader by Lee Tech — Save public media"}]})
         response.close()
 
     @patch("app.socket.getaddrinfo")
@@ -544,6 +610,8 @@ class DownloaderTests(unittest.TestCase):
         }, headers={"Accept": "text/html"})
         self.assertEqual(response.status_code, 400)
         self.assertIn(b"Download not completed", response.data)
+        self.assertIn(b'name="robots" content="noindex,nofollow"', response.data)
+        self.assertEqual(response.headers.get("X-Robots-Tag"), "noindex, nofollow")
         self.assertIn(b"invalid_request", response.data)
         self.assertIn(b'by <strong>Lee Tech</strong>', response.data)
         self.assertIn(b"Only save content you have permission to download.", response.data)

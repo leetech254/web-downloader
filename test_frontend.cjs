@@ -43,6 +43,7 @@ class FakeElement {
   }
 
   click() {
+    if (this.disabled) return undefined;
     this.clickCount += 1;
     if (this.blockFirstClick && this.clickCount === 1) {
       const error = new Error('Automatic download was blocked');
@@ -50,6 +51,9 @@ class FakeElement {
       throw error;
     }
     this.clicked = true;
+    const result = this.handlers.click?.({ preventDefault() {} });
+    if (result && typeof result.then === 'function') this.pendingClick = result;
+    return result;
   }
 
   reportValidity() {
@@ -77,6 +81,7 @@ class FakeElement {
 
 function makeEnvironment(downloadResponse, { mediaType = 'video', hasAudio = true, infoResponse = null } = {}) {
   const elements = new Map();
+  const scheduledTimers = [];
   const get = (id) => {
     if (!elements.has(id)) elements.set(id, new FakeElement(id));
     return elements.get(id);
@@ -155,6 +160,10 @@ function makeEnvironment(downloadResponse, { mediaType = 'video', hasAudio = tru
     ReadableStream,
     TypeError,
     Error,
+    setTimeout: (callback) => {
+      scheduledTimers.push(callback);
+      return scheduledTimers.length;
+    },
     console,
   };
   vm.runInNewContext(source, context, { filename: 'static/app.js' });
@@ -165,6 +174,13 @@ function makeEnvironment(downloadResponse, { mediaType = 'video', hasAudio = tru
     formatRadios,
     objectUrls,
     preview: async () => get('preview-button').handlers.click(),
+    paste: async (value) => {
+      url.value = value;
+      url.handlers.paste();
+      url.handlers.input();
+      scheduledTimers.splice(0).forEach((callback) => callback());
+      await get('preview-button').pendingClick;
+    },
     submit: async () => form.handlers.submit({ preventDefault() {} }),
   };
 }
@@ -186,6 +202,15 @@ test('defaults to Auto, identifies video, and keeps a valid preview after format
   env.elements.get('video-quality').value = '480';
   env.elements.get('video-quality').handlers.change();
   assert.equal(env.elements.get('preview').hidden, false);
+  assert.equal(env.elements.get('download-button').disabled, false);
+});
+
+test('automatically previews a link after it is pasted', async () => {
+  const env = makeEnvironment(new Response(new Uint8Array([1])));
+  await env.paste('https://media.example.test/watch/pasted');
+
+  assert.equal(env.elements.get('preview').hidden, false);
+  assert.equal(env.elements.get('preview-title').textContent, 'Sample media');
   assert.equal(env.elements.get('download-button').disabled, false);
 });
 
