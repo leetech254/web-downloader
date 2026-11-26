@@ -88,6 +88,14 @@ PLATFORM_EXAMPLES = (
     ("Telegram embeds", "telegramembed"),
 )
 _EXTRACTOR_KEYS = {extractor.ie_key().casefold() for extractor in gen_extractor_classes()}
+PLATFORM_EXAMPLES_NOTE = "Examples only. yt-dlp also includes many other extractors; support depends on each URL and the source site's current access rules."
+
+
+def _platform_catalog() -> tuple[list[str], str]:
+    examples = [name for name, extractor_key in PLATFORM_EXAMPLES if extractor_key in _EXTRACTOR_KEYS]
+    return examples, PLATFORM_EXAMPLES_NOTE
+
+
 SIDECAR_EXTENSIONS = {
     ".webp", ".jpg", ".jpeg", ".png", ".gif", ".json", ".description",
     ".vtt", ".srt", ".ass", ".lrc", ".part", ".ytdl", ".temp",
@@ -527,6 +535,7 @@ def request_too_large(_error):
 @app.get("/")
 def index():
     csrf_token = session.setdefault("csrf_token", secrets.token_urlsafe(32))
+    platform_examples, platform_note = _platform_catalog()
     return render_template(
         "index.html",
         cookie_auth_enabled=COOKIE_AUTH_ENABLED,
@@ -535,6 +544,8 @@ def index():
         browser_cookies_enabled=ENABLE_BROWSER_COOKIES,
         browser_cookie_sources=BROWSER_COOKIE_SOURCES,
         csrf_token=csrf_token,
+        platform_examples=platform_examples,
+        platform_note=platform_note,
     )
 
 
@@ -580,11 +591,8 @@ def manus_routes():
 
 @app.get("/api/platforms")
 def api_platforms():
-    examples = [name for name, extractor_key in PLATFORM_EXAMPLES if extractor_key in _EXTRACTOR_KEYS]
-    return jsonify(
-        examples=examples,
-        note="Examples only. yt-dlp also includes many other extractors; support depends on each URL and the source site's current access rules.",
-    )
+    examples, note = _platform_catalog()
+    return jsonify(examples=examples, note=note)
 
 
 @app.post("/api/info")

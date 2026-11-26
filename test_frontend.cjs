@@ -132,18 +132,14 @@ function makeEnvironment(downloadResponse, { mediaType = 'video', hasAudio = tru
     set() {}
   }
 
+  const fetchCalls = [];
   const fetch = async (urlValue) => {
+    fetchCalls.push(urlValue);
     if (urlValue === '/api/info') {
       if (infoResponse) return infoResponse;
       return {
         ok: true,
         json: async () => ({ title: 'Sample media', extractor: 'Example', duration: 10, media_type: mediaType, has_audio: hasAudio }),
-      };
-    }
-    if (urlValue === '/api/platforms') {
-      return {
-        ok: true,
-        json: async () => ({ examples: [], note: 'Examples only.' }),
       };
     }
     if (urlValue === '/download') return downloadResponse;
@@ -172,6 +168,7 @@ function makeEnvironment(downloadResponse, { mediaType = 'video', hasAudio = tru
     elements,
     form,
     formatRadios,
+    fetchCalls,
     objectUrls,
     preview: async () => get('preview-button').handlers.click(),
     paste: async (value) => {
@@ -184,6 +181,11 @@ function makeEnvironment(downloadResponse, { mediaType = 'video', hasAudio = tru
     submit: async () => form.handlers.submit({ preventDefault() {} }),
   };
 }
+
+test('does not fetch platform examples because they are server-rendered', () => {
+  const env = makeEnvironment(new Response(new Uint8Array([1])));
+  assert.equal(env.fetchCalls.includes('/api/platforms'), false);
+});
 
 test('defaults to Auto, identifies video, and keeps a valid preview after format and quality changes', async () => {
   const response = new Response(new Uint8Array([1]), {

@@ -174,8 +174,10 @@
     <section class="platform-panel" aria-labelledby="platform-title">
       <h2 id="platform-title">Platform coverage</h2>
       <p class="hint">Examples available in this installed extractor build</p>
-      <div id="platform-list" class="platform-list" aria-live="polite"><span class="platform-chip">Loading…</span></div>
-      <p id="platform-note" class="platform-note">Coverage is URL-specific and can change when platforms change their sites.</p>
+      <div id="platform-list" class="platform-list">
+        {% for name in platform_examples %}<span class="platform-chip">{{ name }}</span>{% else %}Use any site supported by yt-dlp.{% endfor %}
+      </div>
+      <p id="platform-note" class="platform-note">{{ platform_note }}</p>
     </section>
 
     {% include "_footer.html" %}

@@ -432,6 +432,15 @@ class DownloaderTests(unittest.TestCase):
         self.assertIn("TikTok", response.json["examples"])
         self.assertIn("many other extractors", response.json["note"])
 
+    def test_homepage_server_renders_platform_examples(self):
+        response = self.client.get("/")
+        self.assertEqual(response.status_code, 200)
+        html = response.get_data(as_text=True)
+        self.assertIn('<span class="platform-chip">YouTube</span>', html)
+        self.assertIn('<span class="platform-chip">TikTok</span>', html)
+        self.assertIn("Examples only. yt-dlp also includes many other extractors", html)
+        self.assertNotIn("Loading…", html)
+
     def test_cookie_upload_is_rejected_while_disabled(self):
         cookie_file = b"# Netscape HTTP Cookie File\n.example.com\tTRUE\t/\tTRUE\t2147483647\tname\tvalue\n"
         with patch.object(downloader, "COOKIE_AUTH_ENABLED", False), patch("app.socket.getaddrinfo", side_effect=self.public_dns):

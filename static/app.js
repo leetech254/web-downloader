@@ -509,23 +509,5 @@
     }
   });
 
-  fetch('/api/platforms')
-    .then((response) => response.ok ? response.json() : Promise.reject(new Error('Unavailable')))
-    .then((result) => {
-      const list = document.getElementById('platform-list');
-      list.replaceChildren();
-      result.examples.forEach((name) => {
-        const chip = document.createElement('span');
-        chip.className = 'platform-chip';
-        chip.textContent = name;
-        list.appendChild(chip);
-      });
-      if (!result.examples.length) list.textContent = 'Use any site supported by yt-dlp.';
-      document.getElementById('platform-note').textContent = result.note;
-    })
-    .catch(() => {
-      document.getElementById('platform-list').textContent = 'Use any site supported by yt-dlp.';
-    });
-
   refreshOptions();
 })();
