@@ -5,6 +5,12 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="color-scheme" content="dark">
   <meta name="theme-color" content="#0b1020">
+  <link rel="icon" href="{{ url_for('static', filename='favicon.svg') }}" type="image/svg+xml">
+  <link rel="icon" href="{{ url_for('static', filename='favicon-32x32.png') }}" type="image/png" sizes="32x32">
+  <link rel="icon" href="{{ url_for('static', filename='favicon-16x16.png') }}" type="image/png" sizes="16x16">
+  <link rel="apple-touch-icon" href="{{ url_for('static', filename='apple-touch-icon.png') }}" sizes="180x180">
+  <link rel="manifest" href="{{ url_for('static', filename='site.webmanifest') }}">
+  <meta name="application-name" content="Media Downloader by Lee Tech">
   <title>Media Downloader by Lee Tech — Save public media</title>
   <meta name="description" content="Preview supported public video, audio, and image links with the Media Downloader by Lee Tech. Save only media you have permission to use.">
   <meta name="keywords" content="media downloader, social media downloader, video downloader, audio downloader, Media Downloader">
@@ -28,6 +34,22 @@
   <meta name="twitter:description" content="Preview supported public video, audio, and image links with the Media Downloader by Lee Tech. Save only media you have permission to use.">
   <meta name="twitter:image" content="{{ social_image_url }}">
   <meta name="twitter:image:alt" content="Media Downloader by Lee Tech — preview and save public media links.">
+  <meta name="twitter:domain" content="{{ public_site_url|replace('https://', '')|replace('http://', '') }}">
+  <script type="application/ld+json">{{ {
+    "@context": "https://schema.org",
+    "@type": "WebApplication",
+    "@id": canonical_url ~ "#webapplication",
+    "name": "Media Downloader by Lee Tech",
+    "url": public_site_url,
+    "description": "Preview supported public video, audio, and image links and save media you have permission to use.",
+    "applicationCategory": "MultimediaApplication",
+    "operatingSystem": "Web",
+    "browserRequirements": "Requires a modern web browser with JavaScript enabled",
+    "isAccessibleForFree": true,
+    "image": social_image_url,
+    "offers": {"@type": "Offer", "price": 0, "priceCurrency": "USD"},
+    "featureList": ["Public social media link preview", "Video download", "Audio extraction", "Image download"]
+  }|tojson }}</script>
   {% endif %}
   <link rel="stylesheet" href="{{ url_for('static', filename='app.css') }}">
   <script src="{{ url_for('static', filename='app.js') }}" defer></script>
@@ -172,12 +194,13 @@
     </section>
 
     <section class="platform-panel" aria-labelledby="platform-title">
-      <h2 id="platform-title">Platform coverage</h2>
-      <p class="hint">Examples available in this installed extractor build</p>
+      <h2 id="platform-title">Supported social media platforms</h2>
+      <p class="hint">Download public media from popular social and video platforms when the source link is supported.</p>
       <div id="platform-list" class="platform-list">
         {% for name in platform_examples %}<span class="platform-chip">{{ name }}</span>{% else %}Use any site supported by yt-dlp.{% endfor %}
       </div>
       <p id="platform-note" class="platform-note">{{ platform_note }}</p>
+      <p class="platform-note">Popular examples include YouTube, TikTok, Instagram, Facebook, X, Reddit, Twitch, Vimeo, SoundCloud, Pinterest, Bluesky, and more. Support depends on the specific public URL and the source platform's current access rules.</p>
     </section>
 
     {% include "_footer.html" %}

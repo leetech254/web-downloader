@@ -5,6 +5,12 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="color-scheme" content="dark">
   <meta name="theme-color" content="#0b1020">
+  <link rel="icon" href="{{ url_for('static', filename='favicon.svg') }}" type="image/svg+xml">
+  <link rel="icon" href="{{ url_for('static', filename='favicon-32x32.png') }}" type="image/png" sizes="32x32">
+  <link rel="icon" href="{{ url_for('static', filename='favicon-16x16.png') }}" type="image/png" sizes="16x16">
+  <link rel="apple-touch-icon" href="{{ url_for('static', filename='apple-touch-icon.png') }}" sizes="180x180">
+  <link rel="manifest" href="{{ url_for('static', filename='site.webmanifest') }}">
+  <meta name="application-name" content="Media Downloader by Lee Tech">
   <title>Documentation | Media Downloader by Lee Tech</title>
   <meta name="description" content="Learn how to preview and download public media links with Media Downloader. Read format guidance, supported-source notes, limits, and troubleshooting tips.">
   <meta name="robots" content="index,follow">
@@ -25,6 +31,16 @@
   <meta name="twitter:title" content="Documentation | Media Downloader by Lee Tech">
   <meta name="twitter:description" content="How to preview and download public media links, choose formats, and troubleshoot common issues.">
   <meta name="twitter:image" content="{{ social_image_url }}">
+  <meta name="twitter:image:alt" content="Media Downloader documentation for supported social media links.">
+  <meta name="twitter:domain" content="{{ public_site_url|replace('https://', '')|replace('http://', '') }}">
+  <script type="application/ld+json">{{ {
+    "@context": "https://schema.org",
+    "@type": "WebPage",
+    "name": "Documentation | Media Downloader by Lee Tech",
+    "url": canonical_url,
+    "description": "How to preview and download public media links, choose formats, and troubleshoot common issues.",
+    "isPartOf": {"@type": "WebSite", "name": "Media Downloader by Lee Tech", "url": public_site_url}
+  }|tojson }}</script>
   {% endif %}
   <link rel="stylesheet" href="{{ url_for('static', filename='app.css') }}">
 </head>
@@ -72,12 +88,13 @@
 
       <section class="docs-section" aria-labelledby="coverage-title">
         <p class="docs-kicker">03 / Compatibility</p>
-        <h2 id="coverage-title">Supported sources</h2>
-        <p>The examples below are available in the installed extractor build. They are not a guarantee that every link will work.</p>
+        <h2 id="coverage-title">Supported social media and video platforms</h2>
+        <p>The downloader can recognize public links from social media, video, audio, and image platforms. The examples below are available in the installed extractor build; they are not a guarantee that every link will work.</p>
         <div class="platform-list docs-platform-list">
           {% for name in platform_examples %}<span class="platform-chip">{{ name }}</span>{% else %}No example platforms are currently listed.{% endfor %}
         </div>
         <p class="platform-note">{{ platform_note }}</p>
+        <p>Common examples include YouTube, TikTok, Instagram, Facebook, X, Reddit, Twitch, Vimeo, SoundCloud, Pinterest, Bluesky, Bilibili, Rumble, Dailymotion, LinkedIn, Tumblr, Weibo, Telegram embeds, and other yt-dlp-supported sources.</p>
         <p>Support can change when a source site changes its pages, access rules, or regional availability. Use a direct link to one public media item rather than a profile, search page, playlist, or collection.</p>
       </section>
 
