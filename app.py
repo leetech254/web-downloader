@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import ipaddress
+import hashlib
 import os
 import re
 import secrets
@@ -14,6 +15,7 @@ import time
 import uuid
 from collections import deque
 from math import ceil
+from pathlib import Path
 from urllib.parse import urlsplit
 from xml.etree.ElementTree import Element, SubElement, tostring
 
@@ -51,6 +53,19 @@ def _configured_public_site_url() -> str:
 
 
 PUBLIC_SITE_URL = _configured_public_site_url()
+
+
+def _static_asset_version() -> str:
+    """Return a short content fingerprint for cache-busting public static assets."""
+    digest = hashlib.sha256()
+    static_dir = Path(app.root_path) / "static"
+    for asset in sorted(path for path in static_dir.rglob("*") if path.is_file()):
+        digest.update(asset.relative_to(static_dir).as_posix().encode("utf-8"))
+        digest.update(asset.read_bytes())
+    return digest.hexdigest()[:16]
+
+
+STATIC_ASSET_VERSION = os.getenv("STATIC_ASSET_VERSION") or _static_asset_version()
 
 SOCKET_TIMEOUT = max(5, int(os.getenv("SOCKET_TIMEOUT", "30")))
 MAX_DOWNLOAD_BYTES = max(1, int(os.getenv("MAX_DOWNLOAD_BYTES", str(1024**3))))
@@ -510,6 +525,8 @@ def add_security_headers(response):
     )
     if request.endpoint not in {"index", "documentation", "robots_txt", "sitemap_xml", "static"} or response.status_code >= 400:
         response.headers.setdefault("X-Robots-Tag", "noindex, nofollow")
+    if request.endpoint == "static" and response.status_code == 200:
+        response.headers["Cache-Control"] = "public, max-age=31536000, immutable"
     return response
 
 
@@ -520,6 +537,7 @@ def inject_public_metadata_urls():
         "public_site_url": PUBLIC_SITE_URL,
         "canonical_url": f"{PUBLIC_SITE_URL}{request.path}" if PUBLIC_SITE_URL else "",
         "social_image_url": f"{PUBLIC_SITE_URL}/static/social-preview.jpg" if PUBLIC_SITE_URL else "",
+        "static_asset_version": STATIC_ASSET_VERSION,
     }
 
 

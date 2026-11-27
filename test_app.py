@@ -241,6 +241,20 @@ class DownloaderTests(unittest.TestCase):
         self.assertGreater(len(response.data), 0)
         response.close()
 
+    def test_static_assets_are_fingerprinted_and_immutably_cached(self):
+        homepage = self.client.get("/").get_data(as_text=True)
+        self.assertRegex(homepage, r'app\.css\?v=[a-f0-9]{16}')
+        self.assertRegex(homepage, r'app\.js\?v=[a-f0-9]{16}')
+        css = self.client.get("/static/app.css?v=test")
+        javascript = self.client.get("/static/app.js?v=test")
+        self.assertEqual(css.headers["Cache-Control"], "public, max-age=31536000, immutable")
+        self.assertEqual(javascript.headers["Cache-Control"], "public, max-age=31536000, immutable")
+        self.assertIn("ETag", css.headers)
+        self.assertIn('loading="lazy"', homepage)
+        self.assertIn('decoding="async"', homepage)
+        css.close()
+        javascript.close()
+
     def test_utility_and_error_responses_are_noindex(self):
         for path in ("/healthz", "/api/platforms", "/manus-routes.json"):
             with self.subTest(path=path):

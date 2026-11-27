@@ -62,6 +62,7 @@ All settings are optional environment variables:
 | `ENABLE_COOKIE_AUTH` | `0` | Set to `1` to permit per-request cookie uploads. Keep disabled on public/shared instances. |
 | `ENABLE_BROWSER_COOKIES` | `0` | Set to `1` to show optional local browser-profile access. Requests are still restricted to localhost, same-origin CSRF-protected requests and are rejected behind trusted proxy headers. |
 | `MAX_COOKIE_BYTES` | `2097152` | Maximum uploaded cookie file size (2 MiB by default). |
+| `STATIC_ASSET_VERSION` | Content fingerprint | Optional override for the cache-busting version on CSS, JavaScript, favicon, icon, and manifest URLs. Leave unset to derive it automatically from static asset contents. |
 | `TRUST_PROXY_HEADERS` | `0` in direct Python runs | Set to `1` only behind one trusted proxy that overwrites forwarded headers and blocks direct app access. The public Docker image sets this for the Manus ingress and trusts one proxy hop. |
 | `FLASK_SECRET_KEY` | Random per process | Set a long, random, stable value when running multiple workers so signed Flask sessions remain valid across workers. Never commit it. |
 
@@ -89,6 +90,8 @@ Vercel function limits still matter for container deployments. Vercel documents 
 ## Search and share previews
 
 The homepage sends its title, description, canonical URL, Open Graph fields, and X large-image card tags in server-rendered HTML. `/robots.txt` guides crawlers away from utility endpoints, while `/sitemap.xml` lists only the public homepage; these files help discovery but do not guarantee indexing. See Google's [sitemap guidance](https://developers.google.com/search/docs/crawling-indexing/sitemaps/overview) and the [Open Graph protocol](https://ogp.me/). The Manus container has the current public origin as its default. The Vercel container intentionally leaves `PUBLIC_SITE_URL` empty until the production domain is known, and absolute canonical/social/sitemap URLs are omitted rather than inferred from request or Preview hosts.
+
+Static CSS, JavaScript, favicon, icon, and manifest responses use an automatic content fingerprint in their URLs and are served with a one-year immutable cache policy. When a static file changes, the fingerprint changes on the next process start so visitors receive the new asset without sacrificing repeat-visit caching. The homepage's below-the-fold preview image also uses lazy loading, asynchronous decoding, and explicit dimensions to reduce layout movement.
 
 ## Security and privacy
 

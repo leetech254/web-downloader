@@ -5,11 +5,11 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="color-scheme" content="dark">
   <meta name="theme-color" content="#0b1020">
-  <link rel="icon" href="{{ url_for('static', filename='favicon.svg') }}" type="image/svg+xml">
-  <link rel="icon" href="{{ url_for('static', filename='favicon-32x32.png') }}" type="image/png" sizes="32x32">
-  <link rel="icon" href="{{ url_for('static', filename='favicon-16x16.png') }}" type="image/png" sizes="16x16">
-  <link rel="apple-touch-icon" href="{{ url_for('static', filename='apple-touch-icon.png') }}" sizes="180x180">
-  <link rel="manifest" href="{{ url_for('static', filename='site.webmanifest') }}">
+  <link rel="icon" href="{{ url_for('static', filename='favicon.svg', v=static_asset_version) }}" type="image/svg+xml">
+  <link rel="icon" href="{{ url_for('static', filename='favicon-32x32.png', v=static_asset_version) }}" type="image/png" sizes="32x32">
+  <link rel="icon" href="{{ url_for('static', filename='favicon-16x16.png', v=static_asset_version) }}" type="image/png" sizes="16x16">
+  <link rel="apple-touch-icon" href="{{ url_for('static', filename='apple-touch-icon.png', v=static_asset_version) }}" sizes="180x180">
+  <link rel="manifest" href="{{ url_for('static', filename='site.webmanifest', v=static_asset_version) }}">
   <meta name="application-name" content="Media Downloader by Lee Tech">
   <title>Social Media Video &amp; Audio Downloader | Lee Tech</title>
   <meta name="description" content="Download public videos, audio, and images from supported social media links. Preview media, choose MP4 or MP3, and save content you have permission to use.">
@@ -63,8 +63,8 @@
     ]
   }|tojson }}</script>
   {% endif %}
-  <link rel="stylesheet" href="{{ url_for('static', filename='app.css') }}">
-  <script src="{{ url_for('static', filename='app.js') }}" defer></script>
+  <link rel="stylesheet" href="{{ url_for('static', filename='app.css', v=static_asset_version) }}">
+  <script src="{{ url_for('static', filename='app.js', v=static_asset_version) }}" defer></script>
 </head>
 <body>
   <main class="shell">
@@ -180,7 +180,7 @@
         <div id="message" class="message" role="status" aria-live="polite" hidden></div>
 
         <article id="preview" class="preview" hidden aria-live="polite">
-          <img id="preview-image" alt="" hidden>
+          <img id="preview-image" alt="" width="108" height="72" loading="lazy" decoding="async" hidden>
           <div class="preview-copy">
             <p class="preview-kicker">LINK PREVIEW</p>
             <h2 id="preview-title"></h2>
