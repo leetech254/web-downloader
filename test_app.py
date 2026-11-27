@@ -132,7 +132,10 @@ class DownloaderTests(unittest.TestCase):
         self.assertIn(b"temporarily buffers the download in browser memory", response.data)
         self.assertIn(b'value="auto" checked', response.data)
         self.assertIn(b'by <strong>Lee Tech</strong>', response.data)
-        self.assertIn(b'href="https://github.com/leetech254/web-downloader"', response.data)
+        self.assertIn(b'href="/docs">Documentation', response.data)
+        self.assertIn(b'href="/">Open downloader', response.data)
+        self.assertNotIn(b"Source code", response.data)
+        self.assertNotIn(b"yt-dlp project", response.data)
         self.assertIn(b"Downloads are processed temporarily and removed after transfer.", response.data)
         self.assertNotIn(b"Browser-profile cookie access is disabled by the server.", response.data)
         self.assertNotIn(b"Cookie authentication is disabled by the server.", response.data)
@@ -160,6 +163,24 @@ class DownloaderTests(unittest.TestCase):
         self.assertIn('name="twitter:image" content="https://social.example.test/static/social-preview.jpg"', html)
         self.assertIn('<h1 id="page-title">Save media for<br><span>offline viewing.</span></h1>', html)
 
+
+    def test_docs_page_is_server_rendered_indexable_and_has_route_specific_metadata(self):
+        with patch.object(downloader, "PUBLIC_SITE_URL", "https://social.example.test"):
+            response = self.client.get("/docs")
+        self.assertEqual(response.status_code, 200)
+        self.assertNotIn("X-Robots-Tag", response.headers)
+        html = response.get_data(as_text=True)
+        self.assertIn("<title>Documentation | Media Downloader by Lee Tech</title>", html)
+        self.assertIn('name="robots" content="index,follow"', html)
+        self.assertIn('<link rel="canonical" href="https://social.example.test/docs">', html)
+        self.assertIn('property="og:url" content="https://social.example.test/docs"', html)
+        self.assertIn('<h1 id="page-title">Downloader documentation</h1>', html)
+        self.assertIn("No account or API key required.", html)
+        self.assertIn('href="/">Open the downloader', html)
+        self.assertNotIn("app.js", html)
+        self.assertNotIn("/api/", html)
+
+
     def test_robots_and_sitemap_use_the_configured_origin_and_public_route_only(self):
         with patch.object(downloader, "PUBLIC_SITE_URL", "https://social.example.test"):
             robots = self.client.get("/robots.txt")
@@ -178,7 +199,7 @@ class DownloaderTests(unittest.TestCase):
         root = fromstring(sitemap.data)
         namespace = {"s": "http://www.sitemaps.org/schemas/sitemap/0.9"}
         locations = [node.text for node in root.findall("s:url/s:loc", namespace)]
-        self.assertEqual(locations, ["https://social.example.test/"])
+        self.assertEqual(locations, ["https://social.example.test/", "https://social.example.test/docs"])
 
     def test_unconfigured_origin_omits_absolute_metadata_and_sitemap_discovery(self):
         with patch.object(downloader, "PUBLIC_SITE_URL", ""):
@@ -209,7 +230,10 @@ class DownloaderTests(unittest.TestCase):
     def test_manus_route_manifest_is_served_at_root(self):
         response = self.client.get("/manus-routes.json")
         self.assertEqual(response.status_code, 200)
-        self.assertEqual(response.json, {"routes": [{"path": "/", "title": "Media Downloader by Lee Tech — Save public media"}]})
+        self.assertEqual(response.json, {"routes": [
+            {"path": "/", "title": "Media Downloader by Lee Tech — Save public media"},
+            {"path": "/docs", "title": "Documentation | Media Downloader by Lee Tech"},
+        ]})
         response.close()
 
     @patch("app.socket.getaddrinfo")

@@ -1,0 +1,113 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="dark">
+  <meta name="theme-color" content="#0b1020">
+  <title>Documentation | Media Downloader by Lee Tech</title>
+  <meta name="description" content="Learn how to preview and download public media links with Media Downloader. Read format guidance, supported-source notes, limits, and troubleshooting tips.">
+  <meta name="robots" content="index,follow">
+  {% if canonical_url %}
+  <link rel="canonical" href="{{ canonical_url }}">
+  <meta property="og:type" content="website">
+  <meta property="og:url" content="{{ canonical_url }}">
+  <meta property="og:title" content="Documentation | Media Downloader by Lee Tech">
+  <meta property="og:description" content="How to preview and download public media links, choose formats, and troubleshoot common issues.">
+  <meta property="og:site_name" content="Media Downloader by Lee Tech">
+  <meta property="og:locale" content="en_US">
+  <meta property="og:image" content="{{ social_image_url }}">
+  <meta property="og:image:secure_url" content="{{ social_image_url }}">
+  <meta property="og:image:type" content="image/jpeg">
+  <meta property="og:image:width" content="1200">
+  <meta property="og:image:height" content="630">
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="Documentation | Media Downloader by Lee Tech">
+  <meta name="twitter:description" content="How to preview and download public media links, choose formats, and troubleshoot common issues.">
+  <meta name="twitter:image" content="{{ social_image_url }}">
+  {% endif %}
+  <link rel="stylesheet" href="{{ url_for('static', filename='app.css') }}">
+</head>
+<body>
+  <main class="shell docs-shell">
+    <header class="topbar">
+      <a class="brand" href="/" aria-label="Media Downloader home"><span class="brand-mark" aria-hidden="true">↓</span> Media Downloader</a>
+      <a class="docs-top-link" href="/">Open downloader <span aria-hidden="true">↗</span></a>
+    </header>
+
+    <section class="docs-hero" aria-labelledby="page-title">
+      <p class="eyebrow">Help &amp; guide</p>
+      <h1 id="page-title">Downloader documentation</h1>
+      <p class="intro">A straightforward guide to previewing public media links, choosing an output, and saving your file.</p>
+      <div class="docs-actions">
+        <a class="button button-primary docs-cta" href="/">Open the downloader</a>
+        <span>No account or API key required.</span>
+      </div>
+    </section>
+
+    <div class="docs-content">
+      <section class="docs-section" aria-labelledby="quick-start-title">
+        <p class="docs-kicker">01 / Quick start</p>
+        <h2 id="quick-start-title">Download in four steps</h2>
+        <ol class="docs-steps">
+          <li><strong>Copy a public link.</strong> Use the URL of one post or media item. Playlists and collections are not supported.</li>
+          <li><strong>Paste it into the downloader.</strong> The page previews a pasted link automatically; you can also select <em>Preview link</em>.</li>
+          <li><strong>Review the preview and options.</strong> Choose Auto for the recommended source-compatible option, or customize the format and quality when available.</li>
+          <li><strong>Select Download media.</strong> Follow the transfer status, then save the completed file from your browser.</li>
+        </ol>
+        <a class="docs-inline-link" href="/">Go to Media Downloader</a>
+      </section>
+
+      <section class="docs-section" aria-labelledby="formats-title">
+        <p class="docs-kicker">02 / Output options</p>
+        <h2 id="formats-title">Formats and quality</h2>
+        <ul class="docs-list">
+          <li><strong>Auto</strong> keeps the best compatible source format and is the recommended default.</li>
+          <li><strong>Video / MP4</strong> requests video output where the source supports it.</li>
+          <li><strong>Audio / MP3</strong> requests audio extraction where the source supports it.</li>
+          <li>Quality choices are maximum targets, not guarantees. Available resolutions and bitrates depend on the original media.</li>
+        </ul>
+        <p class="docs-callout">Preview first when possible. The downloader identifies whether the link contains video, audio, or an image and can disable incompatible choices.</p>
+      </section>
+
+      <section class="docs-section" aria-labelledby="coverage-title">
+        <p class="docs-kicker">03 / Compatibility</p>
+        <h2 id="coverage-title">Supported sources</h2>
+        <p>The examples below are available in the installed extractor build. They are not a guarantee that every link will work.</p>
+        <div class="platform-list docs-platform-list">
+          {% for name in platform_examples %}<span class="platform-chip">{{ name }}</span>{% else %}No example platforms are currently listed.{% endfor %}
+        </div>
+        <p class="platform-note">{{ platform_note }}</p>
+        <p>Support can change when a source site changes its pages, access rules, or regional availability. Use a direct link to one public media item rather than a profile, search page, playlist, or collection.</p>
+      </section>
+
+      <section class="docs-section" aria-labelledby="limits-title">
+        <p class="docs-kicker">04 / Limits and privacy</p>
+        <h2 id="limits-title">What to know before downloading</h2>
+        <ul class="docs-list">
+          <li>Only download content you have permission to save, and follow the source site's terms and copyright rules.</li>
+          <li>Downloads are processed temporarily on the server and removed after transfer.</li>
+          <li>To show transfer progress, the browser temporarily buffers the file in memory, up to the server's configured {{ (max_download_bytes / 1048576)|round(0)|int }} MiB cap. Large files can use substantial memory.</li>
+          <li>Private or access-restricted posts may not work with this public-link workflow.</li>
+        </ul>
+      </section>
+
+      <section class="docs-section" aria-labelledby="troubleshooting-title">
+        <p class="docs-kicker">05 / Troubleshooting</p>
+        <h2 id="troubleshooting-title">If a link does not work</h2>
+        <ul class="docs-list">
+          <li>Check that the URL is complete, public, and points to one media item.</li>
+          <li>Try previewing the link again. A source site may be temporarily unavailable or may block automated requests.</li>
+          <li>If the source no longer provides that media or the format is unavailable, try Auto or a different public link.</li>
+          <li>For a large file, check the displayed size limit and available browser memory.</li>
+        </ul>
+        <div class="docs-actions docs-actions-bottom">
+          <a class="button button-primary docs-cta" href="/">Return to the downloader</a>
+        </div>
+      </section>
+    </div>
+
+    {% include "_footer.html" %}
+  </main>
+</body>
+</html>

@@ -508,7 +508,7 @@ def add_security_headers(response):
         "default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' https: data:; "
         "connect-src 'self'; base-uri 'self'; form-action 'self'",
     )
-    if request.endpoint not in {"index", "robots_txt", "sitemap_xml", "static"} or response.status_code >= 400:
+    if request.endpoint not in {"index", "documentation", "robots_txt", "sitemap_xml", "static"} or response.status_code >= 400:
         response.headers.setdefault("X-Robots-Tag", "noindex, nofollow")
     return response
 
@@ -518,7 +518,7 @@ def inject_public_metadata_urls():
     """Provide absolute crawler URLs only when a public origin is configured."""
     return {
         "public_site_url": PUBLIC_SITE_URL,
-        "canonical_url": f"{PUBLIC_SITE_URL}/" if PUBLIC_SITE_URL else "",
+        "canonical_url": f"{PUBLIC_SITE_URL}{request.path}" if PUBLIC_SITE_URL else "",
         "social_image_url": f"{PUBLIC_SITE_URL}/static/social-preview.jpg" if PUBLIC_SITE_URL else "",
     }
 
@@ -549,6 +549,17 @@ def index():
     )
 
 
+@app.get("/docs")
+def documentation():
+    platform_examples, platform_note = _platform_catalog()
+    return render_template(
+        "docs.html",
+        platform_examples=platform_examples,
+        platform_note=platform_note,
+        max_download_bytes=MAX_DOWNLOAD_BYTES,
+    )
+
+
 @app.get("/robots.txt")
 def robots_txt():
     lines = [
@@ -573,8 +584,9 @@ def sitemap_xml():
             mimetype="text/plain",
         )
     urlset = Element("urlset", xmlns="http://www.sitemaps.org/schemas/sitemap/0.9")
-    url = SubElement(urlset, "url")
-    SubElement(url, "loc").text = f"{PUBLIC_SITE_URL}/"
+    for path in ("/", "/docs"):
+        url = SubElement(urlset, "url")
+        SubElement(url, "loc").text = f"{PUBLIC_SITE_URL}{path}"
     xml = b'<?xml version="1.0" encoding="UTF-8"?>\n' + tostring(urlset, encoding="utf-8")
     return Response(xml, mimetype="application/xml")
 
