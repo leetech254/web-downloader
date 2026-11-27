@@ -90,6 +90,8 @@ _RATE_LIMIT_LAST_SWEEP = time.monotonic()
 
 VIDEO_QUALITIES = {"best", "2160", "1440", "1080", "720", "480", "360"}
 AUDIO_QUALITIES = {"320", "256", "192", "128"}
+MIN_CUSTOM_VIDEO_HEIGHT = 144
+MAX_CUSTOM_VIDEO_HEIGHT = 4320
 BROWSER_COOKIE_SOURCES = ("brave", "chrome", "chromium", "edge", "firefox", "opera", "safari", "vivaldi", "whale")
 BROWSER_KEYRINGS = ("basictext", "gnomekeyring", "kwallet", "kwallet5", "kwallet6")
 PLATFORM_EXAMPLES = (
@@ -170,8 +172,17 @@ def validate_url(value: str) -> str:
 def _validate_quality(format_type: str, quality: str) -> None:
     if format_type == "mp3" and quality not in AUDIO_QUALITIES:
         raise InputError("Choose a supported MP3 bitrate.")
-    if format_type == "mp4" and quality not in VIDEO_QUALITIES:
-        raise InputError("Choose a supported video quality.")
+    if format_type == "mp4":
+        if quality in VIDEO_QUALITIES:
+            return
+        try:
+            custom_height = int(quality)
+        except (TypeError, ValueError):
+            custom_height = 0
+        if not MIN_CUSTOM_VIDEO_HEIGHT <= custom_height <= MAX_CUSTOM_VIDEO_HEIGHT or str(custom_height) != str(quality):
+            raise InputError(
+                f"Choose a preset or a custom video height from {MIN_CUSTOM_VIDEO_HEIGHT}p to {MAX_CUSTOM_VIDEO_HEIGHT}p."
+            )
 
 
 def _options(format_type: str, quality: str, output_template: str) -> dict:

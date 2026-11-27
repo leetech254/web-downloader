@@ -207,6 +207,28 @@ test('defaults to Auto, identifies video, and keeps a valid preview after format
   assert.equal(env.elements.get('download-button').disabled, false);
 });
 
+test('supports a custom maximum video height without affecting audio mode', async () => {
+  const env = makeEnvironment(new Response(new Uint8Array([1])));
+  const mp4 = env.formatRadios[1];
+  const custom = env.elements.get('custom-video-quality');
+  env.elements.get('video-quality').value = 'custom';
+  env.formatRadios[0].checked = false;
+  mp4.checked = true;
+  mp4.handlers.change();
+
+  assert.equal(custom.disabled, false);
+  assert.equal(custom.required, true);
+  assert.match(env.elements.get('quality-guidance').textContent, /144p to 4320p/i);
+
+  custom.value = '900';
+  env.formatRadios[2].checked = true;
+  mp4.checked = false;
+  env.formatRadios[2].handlers.change();
+  assert.equal(custom.disabled, true);
+  assert.equal(env.elements.get('audio-quality').disabled, false);
+  assert.match(env.elements.get('quality-guidance').textContent, /MP3 extracts audio only/i);
+});
+
 test('clears the URL and resets preview state with the clear control', async () => {
   const env = makeEnvironment(new Response(new Uint8Array([1])));
   await env.preview();

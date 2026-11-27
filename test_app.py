@@ -445,6 +445,13 @@ class DownloaderTests(unittest.TestCase):
         self.assertIn("height<=720", options["format"])
         self.assertNotIn("/best", options["format"].split("/", 1)[-1])
 
+    def test_custom_video_height_is_bounded_and_used_as_a_format_selector(self):
+        options = downloader._options("mp4", "900", "%(id)s.%(ext)s")
+        self.assertEqual(options["format"], "bestvideo[height<=900]+bestaudio/best[height<=900]")
+        for invalid in ("143", "4321", "900.5", "0900", "custom", "-720", ""):
+            with self.subTest(quality=invalid), self.assertRaises(downloader.InputError):
+                downloader._options("mp4", invalid, "%(id)s.%(ext)s")
+
     def test_auto_mode_leaves_source_format_unforced(self):
         options = downloader._options("auto", "best", "%(id)s.%(ext)s")
         self.assertEqual(options, {"outtmpl": "%(id)s.%(ext)s"})

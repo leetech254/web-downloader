@@ -166,8 +166,11 @@
               <option value="720">Up to 720p</option>
               <option value="480">Up to 480p</option>
               <option value="360">Up to 360p</option>
+              <option value="custom">Custom height…</option>
               <option value="best">Best available</option>
             </select>
+            <label class="field-label hidden" for="custom-video-quality" id="custom-video-label">Custom video height</label>
+            <input id="custom-video-quality" class="hidden" type="number" min="144" max="4320" step="1" inputmode="numeric" placeholder="e.g. 900" aria-describedby="quality-guidance">
             <label class="field-label hidden" for="audio-quality" id="audio-label">MP3 bitrate</label>
             <select id="audio-quality" class="hidden" aria-labelledby="audio-label">
               <option value="320">320 kbps</option>
@@ -175,7 +178,7 @@
               <option value="192" selected>192 kbps</option>
               <option value="128">128 kbps</option>
             </select>
-            <p id="quality-guidance" class="hint">Auto keeps the best compatible source quality; choose MP4 or MP3 to customize or convert.</p>
+            <p id="quality-guidance" class="hint">Auto keeps the best compatible source quality. Choose MP4 for a resolution limit or MP3 for audio-only extraction.</p>
           </div>
         </div>
 

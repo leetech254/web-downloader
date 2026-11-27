@@ -6,6 +6,8 @@
   const previewButton = document.getElementById('preview-button');
   const downloadButton = document.getElementById('download-button');
   const videoQuality = document.getElementById('video-quality');
+  const customVideoQuality = document.getElementById('custom-video-quality');
+  const customVideoLabel = document.getElementById('custom-video-label');
   const videoLabel = document.getElementById('video-label');
   const audioQuality = document.getElementById('audio-quality');
   const audioLabel = document.getElementById('audio-label');
@@ -48,7 +50,8 @@
 
   function selectedQuality() {
     if (selectedFormat() === 'mp3') return audioQuality.value;
-    return ['auto', 'original'].includes(selectedFormat()) ? 'best' : videoQuality.value;
+    if (['auto', 'original'].includes(selectedFormat())) return 'best';
+    return videoQuality.value === 'custom' ? customVideoQuality.value.trim() : videoQuality.value;
   }
 
   function currentKey() {
@@ -156,15 +159,32 @@
     const format = selectedFormat();
     const audio = format === 'mp3';
     const automatic = format === 'auto' || format === 'original';
+    const custom = format === 'mp4' && videoQuality.value === 'custom';
     videoLabel.classList.toggle('hidden', audio || automatic);
     videoQuality.classList.toggle('hidden', audio || automatic);
     videoQuality.disabled = audio || automatic;
     videoQuality.name = !audio && !automatic ? 'quality' : '';
+    customVideoLabel?.classList.toggle('hidden', !custom);
+    customVideoQuality?.classList.toggle('hidden', !custom);
+    if (customVideoQuality) {
+      customVideoQuality.disabled = !custom;
+      customVideoQuality.required = custom;
+      customVideoQuality.name = custom ? 'custom_height' : '';
+    }
     audioQuality.classList.toggle('hidden', !audio);
     audioQuality.disabled = !audio;
     audioQuality.name = audio ? 'quality' : '';
     audioLabel.classList.toggle('hidden', !audio);
-    if (qualityGuidance) qualityGuidance.hidden = !automatic;
+    if (qualityGuidance) {
+      qualityGuidance.hidden = false;
+      qualityGuidance.textContent = automatic
+        ? 'Auto keeps the best compatible source quality. Choose MP4 for a resolution limit or MP3 for audio-only extraction.'
+        : audio
+          ? 'MP3 extracts audio only. Choose a bitrate from 128 to 320 kbps; availability depends on the source.'
+        : custom
+          ? 'Enter a maximum video height from 144p to 4320p. The source may provide a lower resolution.'
+          : 'Choose a maximum video resolution. Available quality depends on the selected platform and source media.';
+    }
     updateFormatGuidance();
   }
 
