@@ -12,7 +12,7 @@
   <link rel="manifest" href="{{ url_for('static', filename='site.webmanifest') }}">
   <meta name="application-name" content="Media Downloader by Lee Tech">
   <title>Social Media Video &amp; Audio Downloader | Lee Tech</title>
-  <meta name="description" content="Preview supported public video, audio, and image links with the Media Downloader by Lee Tech. Save only media you have permission to use.">
+  <meta name="description" content="Download public videos, audio, and images from supported social media links. Preview media, choose MP4 or MP3, and save content you have permission to use.">
   <meta name="keywords" content="media downloader, social media downloader, video downloader, audio downloader, Media Downloader">
   <meta name="robots" content="index,follow">
   {% if canonical_url %}
@@ -20,7 +20,7 @@
   <meta property="og:type" content="website">
   <meta property="og:url" content="{{ canonical_url }}">
   <meta property="og:title" content="Social Media Video &amp; Audio Downloader | Lee Tech">
-  <meta property="og:description" content="Preview supported public video, audio, and image links with the Media Downloader by Lee Tech. Save only media you have permission to use.">
+  <meta property="og:description" content="Download public videos, audio, and images from supported social media links. Preview media, choose MP4 or MP3, and save content you have permission to use.">
   <meta property="og:site_name" content="Media Downloader by Lee Tech">
   <meta property="og:locale" content="en_US">
   <meta property="og:image" content="{{ social_image_url }}">
@@ -31,24 +31,36 @@
   <meta property="og:image:alt" content="Media Downloader by Lee Tech — preview and save public media links.">
   <meta name="twitter:card" content="summary_large_image">
   <meta name="twitter:title" content="Social Media Video &amp; Audio Downloader | Lee Tech">
-  <meta name="twitter:description" content="Preview supported public video, audio, and image links with the Media Downloader by Lee Tech. Save only media you have permission to use.">
+  <meta name="twitter:description" content="Download public videos, audio, and images from supported social media links. Preview media, choose MP4 or MP3, and save content you have permission to use.">
   <meta name="twitter:image" content="{{ social_image_url }}">
   <meta name="twitter:image:alt" content="Media Downloader by Lee Tech — preview and save public media links.">
   <meta name="twitter:domain" content="{{ public_site_url|replace('https://', '')|replace('http://', '') }}">
   <script type="application/ld+json">{{ {
     "@context": "https://schema.org",
-    "@type": "WebApplication",
-    "@id": canonical_url ~ "#webapplication",
-    "name": "Media Downloader by Lee Tech",
-    "url": public_site_url,
-    "description": "Preview supported public video, audio, and image links and save media you have permission to use.",
-    "applicationCategory": "MultimediaApplication",
-    "operatingSystem": "Web",
-    "browserRequirements": "Requires a modern web browser with JavaScript enabled",
-    "isAccessibleForFree": true,
-    "image": social_image_url,
-    "offers": {"@type": "Offer", "price": 0, "priceCurrency": "USD"},
-    "featureList": ["Public social media link preview", "Video download", "Audio extraction", "Image download"]
+    "@graph": [
+      {
+        "@type": "WebSite",
+        "@id": canonical_url ~ "#website",
+        "name": "Media Downloader by Lee Tech",
+        "alternateName": "Media Downloader",
+        "url": canonical_url
+      },
+      {
+        "@type": "WebApplication",
+        "@id": canonical_url ~ "#webapplication",
+        "name": "Media Downloader by Lee Tech",
+        "url": public_site_url,
+        "description": "Download public videos, audio, and images from supported social media links.",
+        "applicationCategory": "MultimediaApplication",
+        "operatingSystem": "Web",
+        "browserRequirements": "Requires a modern web browser with JavaScript enabled",
+        "isAccessibleForFree": true,
+        "image": social_image_url,
+        "isPartOf": {"@id": canonical_url ~ "#website"},
+        "offers": {"@type": "Offer", "price": 0, "priceCurrency": "USD"},
+        "featureList": ["Public social media link preview", "Video download", "Audio extraction", "Image download"]
+      }
+    ]
   }|tojson }}</script>
   {% endif %}
   <link rel="stylesheet" href="{{ url_for('static', filename='app.css') }}">
@@ -63,8 +75,8 @@
 
     <section class="hero" aria-labelledby="page-title">
       <p class="eyebrow">A simple media utility</p>
-      <h1 id="page-title">Save media for<br><span>offline viewing.</span></h1>
-      <p class="intro">Paste a public link from a supported social or media site. The downloader detects the source automatically.</p>
+      <h1 id="page-title">Social media downloader<br><span>for video and audio.</span></h1>
+      <p class="intro">Paste a public link from a supported social or media platform. Preview the source, then save video or audio you have permission to use.</p>
     </section>
 
     <section class="panel" aria-label="Download options">
