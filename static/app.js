@@ -1,6 +1,8 @@
 (() => {
   const form = document.getElementById('download-form');
   const urlInput = document.getElementById('url');
+  const pasteLinkButton = document.getElementById('paste-link-button');
+  const clearUrlButton = document.getElementById('clear-url-button');
   const previewButton = document.getElementById('preview-button');
   const downloadButton = document.getElementById('download-button');
   const videoQuality = document.getElementById('video-quality');
@@ -53,6 +55,44 @@
     const file = cookieInput?.files?.[0];
     const cookieState = file ? `${file.name}:${file.size}:${file.lastModified}` : '';
     return `${urlInput.value.trim()}\n${cookieState}\n${cookieAck?.checked ? 'acknowledged' : 'not-acknowledged'}\n${browserCookieBrowser?.value || ''}\n${browserCookieProfile?.value || ''}\n${browserCookieKeyring?.value || ''}\n${browserCookieAck?.checked ? 'browser-acknowledged' : 'not-acknowledged'}`;
+  }
+
+  function updateUrlActions() {
+    if (clearUrlButton) clearUrlButton.hidden = !urlInput.value.trim();
+  }
+
+  function setUrlValue(value) {
+    urlInput.value = value.trim();
+    updateUrlActions();
+    clearPreview();
+  }
+
+  async function pasteFromClipboard() {
+    if (typeof navigator === 'undefined' || !navigator.clipboard?.readText) {
+      showError('Clipboard access is unavailable here. Paste the link into the field manually.');
+      return;
+    }
+    pasteLinkButton.disabled = true;
+    pasteLinkButton.textContent = 'Reading…';
+    try {
+      const value = (await navigator.clipboard.readText()).trim();
+      if (!value) {
+        showError('Your clipboard is empty. Copy a public media link first.');
+        return;
+      }
+      setUrlValue(value);
+      urlInput.focus?.();
+      if (!/^https?:\/\//i.test(value)) {
+        showError('The pasted text is not a complete HTTP or HTTPS link. Check it, then try again.');
+        return;
+      }
+      previewButton.click();
+    } catch (_) {
+      showError('Clipboard permission was not granted. Paste the link into the field manually.');
+    } finally {
+      pasteLinkButton.disabled = false;
+      pasteLinkButton.textContent = 'Paste link';
+    }
   }
 
   function hasCookieConsent() {
@@ -318,13 +358,40 @@
   }
 
   formatRadios.forEach((radio) => radio.addEventListener('change', refreshOptions));
-  [urlInput, browserCookieProfile].filter(Boolean).forEach((control) => control.addEventListener('input', clearPreview));
+  urlInput.addEventListener('input', () => {
+    updateUrlActions();
+    clearPreview();
+  });
+  urlInput.addEventListener('keydown', (event) => {
+    if (event.key === 'Enter') {
+      event.preventDefault();
+      previewButton.click();
+    }
+  });
+  urlInput.addEventListener('dragover', (event) => event.preventDefault());
+  urlInput.addEventListener('drop', (event) => {
+    event.preventDefault();
+    const dropped = event.dataTransfer?.getData('text/uri-list') || event.dataTransfer?.getData('text/plain') || '';
+    if (dropped.trim()) {
+      const value = dropped.trim().split(/\r?\n/).find((line) => !line.startsWith('#')) || '';
+      setUrlValue(value);
+      if (/^https?:\/\//i.test(value)) previewButton.click();
+      else showError('Drop a complete HTTP or HTTPS media link.');
+    }
+  });
+  browserCookieProfile?.addEventListener('input', clearPreview);
   urlInput.addEventListener('paste', () => {
     setTimeout(() => {
+      updateUrlActions();
       const pastedUrl = urlInput.value.trim();
       if (!/^https?:\/\//i.test(pastedUrl) || previewButton.disabled) return;
       previewButton.click();
     }, 0);
+  });
+  pasteLinkButton?.addEventListener('click', pasteFromClipboard);
+  clearUrlButton?.addEventListener('click', () => {
+    setUrlValue('');
+    urlInput.focus?.();
   });
   form.querySelectorAll('select').forEach((control) => control.addEventListener('change', () => {
     if ([videoQuality, audioQuality].includes(control)) updateFormatGuidance();
@@ -510,4 +577,5 @@
   });
 
   refreshOptions();
+  updateUrlActions();
 })();

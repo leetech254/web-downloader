@@ -83,14 +83,16 @@
       <form id="download-form" action="/download" method="post" enctype="multipart/form-data">
         <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
         <label class="field-label" for="url">Media URL</label>
-        <div class="url-row">
-          <input id="url" name="url" type="url" required maxlength="2048" autocomplete="url" inputmode="url" placeholder="https://…" aria-describedby="url-help">
+        <div class="url-row" id="url-entry">
+          <input id="url" name="url" type="url" required maxlength="2048" autocomplete="url" inputmode="url" enterkeyhint="go" autocapitalize="none" spellcheck="false" placeholder="https://…" aria-describedby="url-help">
+          <button id="paste-link-button" class="button button-secondary button-compact" type="button">Paste link</button>
+          <button id="clear-url-button" class="button button-secondary button-compact clear-url-button" type="button" aria-label="Clear media URL" hidden>Clear</button>
           <button id="preview-button" class="button button-primary" type="button">Preview link</button>
         </div>
         {% if cookie_auth_enabled %}
         <p id="url-help" class="hint">Paste a link to one post or media item to preview it automatically, or press Preview link. Account-restricted content works only with a valid cookie file for your own account.</p>
         {% else %}
-        <p id="url-help" class="hint">Paste a public link to preview it automatically, or press Preview link.</p>
+        <p id="url-help" class="hint">Paste or drop a public link to preview it automatically, use Paste link, or press Preview link.</p>
         {% endif %}
 
         {% if browser_cookies_enabled %}

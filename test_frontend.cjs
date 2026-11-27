@@ -207,6 +207,19 @@ test('defaults to Auto, identifies video, and keeps a valid preview after format
   assert.equal(env.elements.get('download-button').disabled, false);
 });
 
+test('clears the URL and resets preview state with the clear control', async () => {
+  const env = makeEnvironment(new Response(new Uint8Array([1])));
+  await env.preview();
+  const url = env.elements.get('url');
+  const clear = env.elements.get('clear-url-button');
+  assert.equal(clear.hidden, false);
+  clear.click();
+  assert.equal(url.value, '');
+  assert.equal(clear.hidden, true);
+  assert.equal(env.elements.get('preview').hidden, true);
+  assert.equal(env.elements.get('download-button').disabled, true);
+});
+
 test('automatically previews a link after it is pasted', async () => {
   const env = makeEnvironment(new Response(new Uint8Array([1])));
   await env.paste('https://media.example.test/watch/pasted');
