@@ -149,7 +149,9 @@ class DownloaderTests(unittest.TestCase):
             response = self.client.get("/")
         self.assertEqual(response.status_code, 200)
         html = response.get_data(as_text=True)
-        self.assertIn("<title>Social Media Downloader | Save Public Media | Lee Tech</title>", html)
+        self.assertIn("<title>Social Media Video &amp; Audio Downloader | Lee Tech</title>", html)
+        self.assertIn('property="og:title" content="Social Media Video &amp; Audio Downloader | Lee Tech"', html)
+        self.assertIn('name="twitter:title" content="Social Media Video &amp; Audio Downloader | Lee Tech"', html)
         self.assertIn('name="description" content="Preview supported public video, audio, and image links', html)
         self.assertIn('name="keywords" content="media downloader, social media downloader, video downloader, audio downloader, Media Downloader"', html)
         self.assertIn('name="robots" content="index,follow"', html)
@@ -180,7 +182,7 @@ class DownloaderTests(unittest.TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertNotIn("X-Robots-Tag", response.headers)
         html = response.get_data(as_text=True)
-        self.assertIn("<title>Social Media Downloader Guide | Lee Tech</title>", html)
+        self.assertIn("<title>Social Media Video &amp; Audio Downloader Guide | Lee Tech</title>", html)
         self.assertIn('name="robots" content="index,follow"', html)
         self.assertIn('<link rel="canonical" href="https://social.example.test/docs">', html)
         self.assertIn('property="og:url" content="https://social.example.test/docs"', html)
@@ -244,8 +246,8 @@ class DownloaderTests(unittest.TestCase):
         response = self.client.get("/manus-routes.json")
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.json, {"routes": [
-            {"path": "/", "title": "Social Media Downloader | Save Public Media | Lee Tech"},
-            {"path": "/docs", "title": "Social Media Downloader Guide | Lee Tech"},
+            {"path": "/", "title": "Social Media Video & Audio Downloader | Lee Tech"},
+            {"path": "/docs", "title": "Social Media Video & Audio Downloader Guide | Lee Tech"},
         ]})
         response.close()
 
