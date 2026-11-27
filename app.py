@@ -28,7 +28,11 @@ from werkzeug.wsgi import ClosingIterator
 
 app = Flask(__name__)
 app.secret_key = os.getenv("FLASK_SECRET_KEY") or secrets.token_hex(32)
-app.config.update(SESSION_COOKIE_HTTPONLY=True, SESSION_COOKIE_SAMESITE="Strict")
+app.config.update(
+    SESSION_COOKIE_HTTPONLY=True,
+    SESSION_COOKIE_SAMESITE="Strict",
+    SESSION_COOKIE_SECURE=os.getenv("SESSION_COOKIE_SECURE", "0").strip().lower() in {"1", "true", "yes"},
+)
 
 DEFAULT_PUBLIC_SITE_URL = "https://mediagrab-kbljqk2v.manus.space"
 
@@ -272,6 +276,33 @@ def _browser_cookie_options() -> tuple | None:
         raise InputError("Choose a supported browser keyring option.")
 
     return (browser, profile or None, keyring or None, None)
+
+
+def _validate_post_security() -> None:
+    """Protect browser-originated POSTs while keeping the unauthenticated API usable."""
+    fetch_site = request.headers.get("Sec-Fetch-Site", "").casefold()
+    if fetch_site in {"cross-site", "cross-origin"}:
+        raise InputError("This request must come from the downloader page, not another site.")
+
+    origin = request.headers.get("Origin", "").strip()
+    if origin:
+        try:
+            parsed_origin = urlsplit(origin)
+        except ValueError as exc:
+            raise InputError("This request requires a valid same-origin security check.") from exc
+        if (
+            parsed_origin.scheme.casefold() != request.scheme.casefold()
+            or parsed_origin.netloc.casefold() != request.host.casefold()
+        ):
+            raise InputError("This request must come from the downloader's own origin (same-origin required).")
+
+    expected_token = session.get("csrf_token", "")
+    supplied_token = request.form.get("csrf_token", "")
+    if expected_token:
+        if not supplied_token or not secrets.compare_digest(supplied_token, expected_token):
+            raise InputError("This request failed its security check. Reload the page and retry.")
+    elif origin:
+        raise InputError("Reload the downloader page before submitting this request.")
 
 
 def _store_cookie_upload(temp_dir: str) -> str | None:
@@ -638,6 +669,10 @@ def api_platforms():
 
 @app.post("/api/info")
 def api_info():
+    try:
+        _validate_post_security()
+    except InputError as exc:
+        return jsonify(error=str(exc), code="invalid_request"), 400
     retry_after = _enforce_client_rate_limit("preview")
     if retry_after is not None:
         return _rate_limit_response(
@@ -694,6 +729,10 @@ def api_info():
 
 @app.post("/download")
 def download():
+    try:
+        _validate_post_security()
+    except InputError as exc:
+        return _download_error(str(exc), 400, code="invalid_request")
     retry_after = _enforce_client_rate_limit("download")
     if retry_after is not None:
         return _rate_limit_response(

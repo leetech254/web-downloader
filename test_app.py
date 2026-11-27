@@ -124,6 +124,22 @@ class DownloaderTests(unittest.TestCase):
         self.assertNotIn("X-Frame-Options", response.headers)
         self.assertNotIn("frame-ancestors", response.headers["Content-Security-Policy"])
 
+    def test_browser_originated_post_requires_same_origin_and_csrf_token(self):
+        data = {"url": "https://example.com/watch", "format": "mp4", "quality": "720"}
+        cross_site = self.client.post("/api/info", data=data, headers={"Origin": "https://evil.example"})
+        self.assertEqual(cross_site.status_code, 400)
+        self.assertIn("own origin", cross_site.json["error"])
+
+        self.client.get("/")
+        missing_token = self.client.post("/api/info", data=data, headers={"Origin": "http://localhost"})
+        self.assertEqual(missing_token.status_code, 400)
+        self.assertIn("security check", missing_token.json["error"])
+
+    def test_secure_session_cookie_can_be_enabled_for_https(self):
+        with patch.dict(downloader.app.config, {"SESSION_COOKIE_SECURE": True}):
+            response = self.client.get("/")
+        self.assertIn("Secure", response.headers["Set-Cookie"])
+
     def test_homepage_exposes_transfer_progress_and_memory_limit(self):
         response = self.client.get("/")
         self.assertEqual(response.status_code, 200)

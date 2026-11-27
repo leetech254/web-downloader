@@ -61,6 +61,7 @@ All settings are optional environment variables:
 | `MAX_RATE_LIMIT_BUCKETS` | `10000` | Maximum in-memory per-client window buckets; when full, new identities are temporarily rejected rather than growing memory without bound. |
 | `ENABLE_COOKIE_AUTH` | `0` | Set to `1` to permit per-request cookie uploads. Keep disabled on public/shared instances. |
 | `ENABLE_BROWSER_COOKIES` | `0` | Set to `1` to show optional local browser-profile access. Requests are still restricted to localhost, same-origin CSRF-protected requests and are rejected behind trusted proxy headers. |
+| `SESSION_COOKIE_SECURE` | `0` in direct Python runs; `1` in containers | Mark Flask session cookies Secure for HTTPS deployments. Keep `0` for plain-HTTP local development. Browser-originated preview and download POSTs also validate same-origin and CSRF signals when a session is present. |
 | `MAX_COOKIE_BYTES` | `2097152` | Maximum uploaded cookie file size (2 MiB by default). |
 | `STATIC_ASSET_VERSION` | Content fingerprint | Optional override for the cache-busting version on CSS, JavaScript, favicon, icon, and manifest URLs. Leave unset to derive it automatically from static asset contents. |
 | `TRUST_PROXY_HEADERS` | `0` in direct Python runs | Set to `1` only behind one trusted proxy that overwrites forwarded headers and blocks direct app access. The public Docker image sets this for the Manus ingress and trusts one proxy hop. |
