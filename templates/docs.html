@@ -12,14 +12,14 @@
   <link rel="manifest" href="{{ url_for('static', filename='site.webmanifest', v=static_asset_version) }}">
   <meta name="application-name" content="Media Downloader by Lee Tech">
   <title>Social Media Video &amp; Audio Downloader Guide | Lee Tech</title>
-  <meta name="description" content="Learn how to download public social media videos and audio. Find supported platforms, MP4 and MP3 guidance, limits, privacy notes, and troubleshooting tips.">
+  <meta name="description" content="Learn how to download public social media videos and audio, deploy behind HTTPS, and integrate the guide safely. Find supported platforms, format guidance, limits, privacy notes, and troubleshooting tips.">
   <meta name="robots" content="index,follow">
   {% if canonical_url %}
   <link rel="canonical" href="{{ canonical_url }}">
   <meta property="og:type" content="website">
   <meta property="og:url" content="{{ canonical_url }}">
   <meta property="og:title" content="Social Media Video &amp; Audio Downloader Guide | Lee Tech">
-  <meta property="og:description" content="How to preview and download public media links, choose formats, and troubleshoot common issues.">
+  <meta property="og:description" content="How to preview and download public media links, deploy behind HTTPS, choose formats, and troubleshoot common issues.">
   <meta property="og:site_name" content="Media Downloader by Lee Tech">
   <meta property="og:locale" content="en_US">
   <meta property="og:image" content="{{ social_image_url }}">
@@ -39,7 +39,7 @@
     "@type": "WebPage",
     "name": "Documentation | Media Downloader by Lee Tech",
     "url": canonical_url,
-    "description": "How to preview and download public media links, choose formats, and troubleshoot common issues.",
+    "description": "How to preview and download public media links, deploy behind HTTPS, choose formats, and troubleshoot common issues.",
     "isPartOf": {"@type": "WebSite", "name": "Media Downloader by Lee Tech", "url": public_site_url}
   }|tojson }}</script>
   {% endif %}
@@ -110,8 +110,32 @@
         </ul>
       </section>
 
+      <section class="docs-section" aria-labelledby="https-title">
+        <p class="docs-kicker">05 / HTTPS integration</p>
+        <h2 id="https-title">Use the downloader on your own website</h2>
+        <p>You can host this project behind your own HTTPS domain or link to this documentation from another site. For a secure integration, keep the downloader and the page that submits requests on the same origin, such as <code>https://downloader.example.com</code>. Cross-origin browser POSTs are rejected; there is no public CORS or API-key contract.</p>
+        <ol class="docs-steps">
+          <li><strong>Terminate TLS at a trusted proxy.</strong> Forward HTTPS traffic to Flask and overwrite <code>Host</code>, <code>X-Forwarded-For</code>, and <code>X-Forwarded-Proto</code>. Set <code>TRUST_PROXY_HEADERS=1</code> only when direct access to Flask is blocked.</li>
+          <li><strong>Set the public origin.</strong> Configure <code>PUBLIC_SITE_URL=https://your-domain.example</code> without a path so canonical links, sitemap URLs, and social previews use your real site.</li>
+          <li><strong>Protect the session.</strong> Use <code>SESSION_COOKIE_SECURE=1</code> in HTTPS production and keep <code>FLASK_SECRET_KEY</code> stable across workers or replicas. The page already sends its CSRF token and same-origin request signals.</li>
+          <li><strong>Reuse the guide safely.</strong> Link to <code>/docs</code> or copy its user-facing instructions with attribution. Do not copy secrets, cookie files, or server environment values into another site.</li>
+        </ol>
+        <p class="docs-callout">For a browser application on a different domain, use a server-side integration that you control or deploy this app under the same origin. Do not disable CSRF, add permissive CORS, or expose account cookies to make cross-origin requests work.</p>
+        <h3>HTTPS request examples</h3>
+        <pre class="docs-code"><code># Check that your HTTPS deployment is ready
+curl -fsS https://downloader.example.com/healthz
+
+# Server-side metadata request (keep API calls on your own backend)
+curl -fsS -X POST https://downloader.example.com/api/info \
+  -H 'Accept: application/json' \
+  --data-urlencode 'url=https://source.example/post/123' \
+  --data-urlencode 'format=auto' \
+  --data-urlencode 'quality=best'</code></pre>
+        <p class="platform-note">The endpoint is rate-limited and accepts public media URLs only. Respect the source platform's terms, copyright rules, and any permissions required for the content.</p>
+      </section>
+
       <section class="docs-section" aria-labelledby="troubleshooting-title">
-        <p class="docs-kicker">05 / Troubleshooting</p>
+        <p class="docs-kicker">06 / Troubleshooting</p>
         <h2 id="troubleshooting-title">If a link does not work</h2>
         <ul class="docs-list">
           <li>Check that the URL is complete, public, and points to one media item.</li>

@@ -88,6 +88,22 @@ To try a deployment, import this GitHub repository into Vercel with the reposito
 
 Vercel function limits still matter for container deployments. Vercel documents a 300-second maximum duration for Hobby functions, and response bodies are limited to 4.5 MB unless streamed. This app permits outputs up to 250 MiB and source media up to one hour, so large or slow downloads and FFmpeg work are not guaranteed to complete within Hobby limits. Confirm that the deployed runtime streams the attachment successfully and verify real end-to-end timing before treating a Vercel deployment as production-ready; use an external worker/storage architecture if the limits are insufficient. See [Vercel Container Runtime](https://vercel.com/docs/functions/runtimes/container), [function duration](https://vercel.com/docs/functions/configuring-functions/duration), and [function limits](https://vercel.com/docs/functions/limitations).
 
+## HTTPS integration for another website
+
+If you want to use this downloader or reuse its guide on your own site, deploy it behind a stable HTTPS origin such as `https://downloader.example.com`. Terminate TLS at a trusted reverse proxy, forward the original `Host`, `X-Forwarded-For`, and `X-Forwarded-Proto` values, and set `TRUST_PROXY_HEADERS=1` only when the proxy overwrites those headers and direct Flask access is blocked. Set `PUBLIC_SITE_URL` to the same HTTPS origin and use `SESSION_COOKIE_SECURE=1` in production. Keep `FLASK_SECRET_KEY` stable across workers.
+
+The browser UI is intentionally same-origin: its preview and download POSTs use a session CSRF token and same-origin request signals. Do not add permissive CORS or disable CSRF to make a different frontend work. For a separate website, either link users to the hosted `/docs` and `/` pages, serve a reverse-proxied copy under the same origin, or make server-side requests from a backend you control. The metadata endpoint can be called server-side, for example:
+
+```sh
+curl -fsS -X POST https://downloader.example.com/api/info \
+  -H 'Accept: application/json' \
+  --data-urlencode 'url=https://source.example/post/123' \
+  --data-urlencode 'format=auto' \
+  --data-urlencode 'quality=best'
+```
+
+When copying the public guide, retain its safety, permissions, privacy, source-platform, and HTTPS notes. Never copy `FLASK_SECRET_KEY`, session cookies, cookie exports, or other deployment values into your site or frontend code. The endpoint remains rate-limited and is not a guaranteed platform-wide API contract.
+
 ## Search and share previews
 
 The homepage sends its title, description, canonical URL, Open Graph fields, and X large-image card tags in server-rendered HTML. `/robots.txt` guides crawlers away from utility endpoints, while `/sitemap.xml` lists only the public homepage; these files help discovery but do not guarantee indexing. See Google's [sitemap guidance](https://developers.google.com/search/docs/crawling-indexing/sitemaps/overview) and the [Open Graph protocol](https://ogp.me/). The Manus container has the current public origin as its default. The Vercel container intentionally leaves `PUBLIC_SITE_URL` empty until the production domain is known, and absolute canonical/social/sitemap URLs are omitted rather than inferred from request or Preview hosts.

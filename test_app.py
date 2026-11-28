@@ -211,15 +211,19 @@ class DownloaderTests(unittest.TestCase):
         self.assertIn('<link rel="canonical" href="https://social.example.test/docs">', html)
         self.assertIn('property="og:url" content="https://social.example.test/docs"', html)
         self.assertIn('"@type": "WebPage"', html)
-        self.assertIn('name="description" content="Learn how to download public social media videos and audio.', html)
+        self.assertIn('name="description" content="Learn how to download public social media videos and audio, deploy behind HTTPS', html)
         self.assertIn('property="og:image:alt" content="Social Media Video and Audio Downloader guide by Lee Tech."', html)
         self.assertIn('name="twitter:image:alt" content="Media Downloader documentation for supported social media links."', html)
         self.assertIn('<h2 id="coverage-title">Supported social media and video platforms</h2>', html)
+        self.assertIn('<h2 id="https-title">Use the downloader on your own website</h2>', html)
+        self.assertIn("Cross-origin browser POSTs are rejected", html)
+        self.assertIn("SESSION_COOKIE_SECURE=1", html)
+        self.assertIn("https://downloader.example.com/healthz", html)
         self.assertIn('<h1 id="page-title">Social media downloader guide</h1>', html)
         self.assertIn("No account or API key required.", html)
         self.assertIn('href="/">Open the downloader', html)
         self.assertNotIn("app.js", html)
-        self.assertNotIn("/api/", html)
+        self.assertIn("/api/info", html)
 
 
     def test_robots_and_sitemap_use_the_configured_origin_and_public_route_only(self):
