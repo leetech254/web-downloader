@@ -196,6 +196,7 @@
 
 /* On-site documentation */
 .docs-shell { max-width: 900px; }
+.docs-top-nav { display: flex; align-items: center; gap: 16px; }
 .docs-top-link, .docs-inline-link { color: var(--accent-2); font-size: 12px; font-weight: 700; text-decoration: none; }
 .docs-top-link:hover, .docs-inline-link:hover { color: #fff; text-decoration: underline; text-underline-offset: 3px; }
 .docs-hero { max-width: 720px; margin: 58px auto 34px; text-align: center; }
@@ -209,6 +210,9 @@
 .docs-section p:not(.docs-kicker):not(.platform-note) { color: #c2cbe0; font-size: 13px; line-height: 1.7; }
 .docs-section code { color: #d8dfff; font: 500 .92em/1.4 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
 .docs-code { overflow-x: auto; margin: 16px 0 0; padding: 14px 15px; border: 1px solid #33415c; border-radius: 10px; background: #080f1d; color: #d8e0f7; font: 12px/1.65 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
+.playground-card form { display: grid; gap: 12px; }
+.playground-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+.playground-response { min-height: 150px; margin-bottom: 0; white-space: pre-wrap; }
 .docs-kicker { margin: 0 0 7px; color: var(--accent-2); font-size: 10px; font-weight: 700; letter-spacing: 1.3px; text-transform: uppercase; }
 .docs-steps, .docs-list { display: grid; gap: 12px; margin: 0; padding-left: 21px; color: #c2cbe0; font-size: 13px; line-height: 1.7; }
 .docs-steps li::marker { color: var(--accent-2); font-weight: 700; }
@@ -225,4 +229,6 @@
   .docs-section h2 { font-size: 20px; }
   .docs-actions { justify-content: flex-start; }
   .docs-hero .docs-actions { justify-content: center; }
+  .docs-top-nav { gap: 10px; }
+  .playground-grid { grid-template-columns: 1fr; }
 }

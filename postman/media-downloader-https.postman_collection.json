@@ -1,0 +1,72 @@
+{
+  "info": {
+    "name": "Media Downloader HTTPS API",
+    "description": "Safe server-side integration checks for the Media Downloader HTTPS service. Set baseUrl to your deployed HTTPS origin. The collection tests health and public metadata preview; it does not download files.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "https://downloader.example.com",
+      "type": "string"
+    },
+    {
+      "key": "mediaUrl",
+      "value": "https://source.example/post/123",
+      "type": "string"
+    }
+  ],
+  "item": [
+    {
+      "name": "Health check",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/healthz",
+          "host": ["{{baseUrl}}"],
+          "path": ["healthz"]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "Preview public media metadata",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Accept",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "urlencoded",
+          "urlencoded": [
+            {
+              "key": "url",
+              "value": "{{mediaUrl}}",
+              "type": "text"
+            },
+            {
+              "key": "format",
+              "value": "auto",
+              "type": "text"
+            },
+            {
+              "key": "quality",
+              "value": "best",
+              "type": "text"
+            }
+          ]
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/info",
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "info"]
+        }
+      },
+      "response": []
+    }
+  ]
+}

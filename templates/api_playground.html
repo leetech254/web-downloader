@@ -1,0 +1,80 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="dark">
+  <meta name="theme-color" content="#0b1020">
+  <link rel="icon" href="{{ url_for('static', filename='favicon.svg', v=static_asset_version) }}" type="image/svg+xml">
+  <link rel="stylesheet" href="{{ url_for('static', filename='app.css', v=static_asset_version) }}">
+  <title>HTTPS API Playground | Media Downloader</title>
+  <meta name="robots" content="noindex, nofollow">
+</head>
+<body>
+  <main class="shell docs-shell playground-shell">
+    <header class="topbar">
+      <a class="brand" href="/" aria-label="Media Downloader home"><span class="brand-mark" aria-hidden="true">↓</span> Media Downloader</a>
+      <nav class="docs-top-nav" aria-label="Developer navigation">
+        <a class="docs-top-link" href="/docs">Documentation</a>
+        <a class="docs-top-link" href="/">Open downloader <span aria-hidden="true">↗</span></a>
+      </nav>
+    </header>
+
+    <section class="docs-hero" aria-labelledby="page-title">
+      <p class="eyebrow">Developer tools</p>
+      <h1 id="page-title">HTTPS API playground</h1>
+      <p class="intro">Test a same-origin metadata request before integrating the service into your own HTTPS backend. This playground does not download files.</p>
+    </section>
+
+    <section class="docs-section playground-card" aria-labelledby="request-title">
+      <p class="docs-kicker">POST /api/info</p>
+      <h2 id="request-title">Preview a public media URL</h2>
+      <form id="api-playground-form">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+        <label class="field-label" for="playground-url">Public media URL</label>
+        <input id="playground-url" name="url" type="url" required maxlength="2048" placeholder="https://example.com/post/123" autocomplete="url">
+        <div class="playground-grid">
+          <div>
+            <label class="field-label" for="playground-format">Format</label>
+            <select id="playground-format" name="format">
+              <option value="auto" selected>Auto</option>
+              <option value="mp4">MP4 video</option>
+              <option value="mp3">MP3 audio</option>
+            </select>
+          </div>
+          <div>
+            <label class="field-label" for="playground-quality">Quality</label>
+            <select id="playground-quality" name="quality">
+              <option value="best" selected>Best / source compatible</option>
+              <option value="1080">Up to 1080p</option>
+              <option value="720">Up to 720p</option>
+              <option value="192">MP3 192 kbps</option>
+              <option value="128">MP3 128 kbps</option>
+            </select>
+          </div>
+        </div>
+        <button class="button button-primary" type="submit" id="playground-submit">Send HTTPS request</button>
+      </form>
+      <p id="playground-status" class="hint" role="status" aria-live="polite">Requests stay on this origin and include the page's CSRF token.</p>
+      <pre id="playground-response" class="docs-code playground-response" aria-label="API response" tabindex="0">{
+  "ready": true,
+  "message": "Your JSON response will appear here."
+}</pre>
+    </section>
+
+    <section class="docs-section" aria-labelledby="integration-notes-title">
+      <p class="docs-kicker">Integration notes</p>
+      <h2 id="integration-notes-title">Move from testing to production</h2>
+      <ul class="docs-list">
+        <li>Use the <a class="docs-inline-link" href="/docs#https-title">HTTPS integration guide</a> for TLS termination, proxy headers, stable secrets, and same-origin rules.</li>
+        <li>Use the server-side <code>/api/info</code> request from your own backend. Browser requests from another origin are rejected; do not disable CSRF or add permissive CORS.</li>
+        <li>Import the repository's Postman collection to test health and metadata requests with a configurable <code>baseUrl</code>.</li>
+        <li>This service is rate-limited and accepts public media URLs. Respect platform terms and content permissions.</li>
+      </ul>
+    </section>
+
+    {% include "_footer.html" %}
+  </main>
+  <script src="{{ url_for('static', filename='api-playground.js', v=static_asset_version) }}" defer></script>
+</body>
+</html>

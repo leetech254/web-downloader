@@ -225,6 +225,18 @@ class DownloaderTests(unittest.TestCase):
         self.assertNotIn("app.js", html)
         self.assertIn("/api/info", html)
 
+    def test_api_playground_is_noindex_and_server_rendered_with_csrf(self):
+        response = self.client.get("/api-playground")
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.headers.get("X-Robots-Tag"), "noindex, nofollow")
+        html = response.get_data(as_text=True)
+        self.assertIn("HTTPS API playground", html)
+        self.assertIn('id="api-playground-form"', html)
+        self.assertIn('name="csrf_token"', html)
+        self.assertIn("POST /api/info", html)
+        self.assertIn("This playground does not download files", html)
+        self.assertIn("api-playground.js", html)
+
 
     def test_robots_and_sitemap_use_the_configured_origin_and_public_route_only(self):
         with patch.object(downloader, "PUBLIC_SITE_URL", "https://social.example.test"):
@@ -292,6 +304,7 @@ class DownloaderTests(unittest.TestCase):
         self.assertEqual(response.json, {"routes": [
             {"path": "/", "title": "Social Media Video & Audio Downloader | Lee Tech"},
             {"path": "/docs", "title": "Social Media Video & Audio Downloader Guide | Lee Tech"},
+            {"path": "/api-playground", "title": "HTTPS API Playground | Media Downloader"},
         ]})
         response.close()
 

@@ -104,6 +104,8 @@ curl -fsS -X POST https://downloader.example.com/api/info \
 
 When copying the public guide, retain its safety, permissions, privacy, source-platform, and HTTPS notes. Never copy `FLASK_SECRET_KEY`, session cookies, cookie exports, or other deployment values into your site or frontend code. The endpoint remains rate-limited and is not a guaranteed platform-wide API contract.
 
+For interactive same-origin testing, open `/api-playground` on your HTTPS deployment. It tests `POST /api/info`, displays the structured JSON response, includes the session CSRF token automatically, and never downloads a file. For server-side tooling, import [`postman/media-downloader-https.postman_collection.json`](postman/media-downloader-https.postman_collection.json) into Postman and set the `baseUrl` and `mediaUrl` collection variables.
+
 ## Search and share previews
 
 The homepage sends its title, description, canonical URL, Open Graph fields, and X large-image card tags in server-rendered HTML. `/robots.txt` guides crawlers away from utility endpoints, while `/sitemap.xml` lists only the public homepage; these files help discovery but do not guarantee indexing. See Google's [sitemap guidance](https://developers.google.com/search/docs/crawling-indexing/sitemaps/overview) and the [Open Graph protocol](https://ogp.me/). The Manus container has the current public origin as its default. The Vercel container intentionally leaves `PUBLIC_SITE_URL` empty until the production domain is known, and absolute canonical/social/sitemap URLs are omitted rather than inferred from request or Preview hosts.

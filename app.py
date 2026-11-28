@@ -620,6 +620,12 @@ def documentation():
     )
 
 
+@app.get("/api-playground")
+def api_playground():
+    csrf_token = session.setdefault("csrf_token", secrets.token_urlsafe(32))
+    return render_template("api_playground.html", csrf_token=csrf_token)
+
+
 @app.get("/robots.txt")
 def robots_txt():
     lines = [

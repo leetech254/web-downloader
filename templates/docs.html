@@ -58,6 +58,7 @@
       <p class="intro">A straightforward guide to previewing public media links, choosing an output, and saving your file.</p>
       <div class="docs-actions">
         <a class="button button-primary docs-cta" href="/">Open the downloader</a>
+        <a class="docs-inline-link" href="/api-playground">Open API playground</a>
         <span>No account or API key required.</span>
       </div>
     </section>
@@ -121,6 +122,7 @@
           <li><strong>Reuse the guide safely.</strong> Link to <code>/docs</code> or copy its user-facing instructions with attribution. Do not copy secrets, cookie files, or server environment values into another site.</li>
         </ol>
         <p class="docs-callout">For a browser application on a different domain, use a server-side integration that you control or deploy this app under the same origin. Do not disable CSRF, add permissive CORS, or expose account cookies to make cross-origin requests work.</p>
+        <p class="docs-callout"><a class="docs-inline-link" href="/api-playground">Open the interactive API playground</a> to test the metadata endpoint in your browser, or import the Postman collection from the repository for server-side testing.</p>
         <h3>HTTPS request examples</h3>
         <pre class="docs-code"><code># Check that your HTTPS deployment is ready
 curl -fsS https://downloader.example.com/healthz
